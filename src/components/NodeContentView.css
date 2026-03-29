@@ -1,0 +1,361 @@
+.nc-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(128, 128, 128, 0.4); /* Classic gray overlay */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.nc-modal {
+  background: #ffffff;
+  width: 90%;
+  max-width: 900px;
+  max-height: 90vh;
+  border: 1px solid #1a5598; /* Official Blue Border */
+  border-radius: 6px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+}
+
+.nc-header {
+  padding: 8px 16px;
+  background-color: #f7f9fa;
+  border-bottom: 1px solid #dedede;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nc-header h2 {
+  margin: 0;
+  font-size: 15px;
+  color: #000;
+  font-weight: normal;
+}
+
+.nc-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* System Style Buttons */
+.nc-btn-icon {
+  background: #fdfdfd;
+  background: linear-gradient(to bottom, #fdfdfd 0%, #eeeeee 100%);
+  border: 1px solid #b0b0b0;
+  color: #333;
+  padding: 3px 6px;
+  border-radius: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.nc-btn-icon:hover {
+  background: linear-gradient(to bottom, #f4f4f4 0%, #e4e4e4 100%);
+}
+
+.nc-btn-icon.active {
+  background: #e5f2ff;
+  border-color: #1a5598;
+  color: #1a5598;
+}
+
+.nc-btn-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #1a5598;
+  cursor: pointer;
+  padding: 0 4px;
+  font-weight: bold;
+}
+
+.nc-content {
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background-color: #ffffff;
+}
+
+.nc-section-title {
+  font-size: 13px;
+  font-weight: bold;
+  color: #1a5598;
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid #7eaac3;
+  padding-bottom: 4px;
+}
+
+.nc-editor-container {
+  border: 1px solid #aebac6;
+  border-radius: 2px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+/* Tiptap Toolbar - Classic Style */
+.nc-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 2px;
+  background: #f0f0f0;
+  border-bottom: 1px solid #ccc;
+}
+
+.nc-toolbar button {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #333;
+  width: 24px;
+  height: 24px;
+  border-radius: 1px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: none;
+}
+
+.nc-toolbar button:hover {
+  border-color: #aaa;
+  background: #e0e0e0;
+}
+
+.nc-toolbar button.is-active {
+  background: #ccc;
+  border-color: #999;
+}
+
+.nc-toolbar-divider {
+  width: 1px;
+  height: 16px;
+  background: #ccc;
+  margin: 4px 2px;
+}
+
+.nc-tiptap-wrapper {
+  padding: 12px;
+  min-height: 150px;
+}
+
+/* --- Attachments Section --- */
+.nc-attachments-container {
+  padding: 8px 0;
+}
+
+.nc-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.nc-file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f7fbff;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  padding: 6px 12px;
+}
+
+.nc-file-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.nc-file-info:hover .nc-file-name {
+  color: #1a5598;
+  text-decoration: underline;
+}
+
+.nc-file-icon {
+  color: #ff4d4f; /* Red for PDF */
+}
+
+.nc-file-name {
+  font-size: 13px;
+  color: #333;
+}
+
+.nc-download-hint {
+  color: #adb5bd;
+  margin-left: 8px;
+}
+
+.nc-delete-file-btn {
+  background: none;
+  border: none;
+  color: #adb5bd;
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.2s;
+}
+
+.nc-delete-file-btn:hover {
+  color: #ff4d4f;
+}
+
+.nc-upload-pdf-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fdfdfd;
+  background: linear-gradient(to bottom, #fdfdfd 0%, #eeeeee 100%);
+  border: 1px solid #8c8c8c;
+  color: #000;
+  padding: 4px 12px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 13px;
+  box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+}
+
+.nc-upload-pdf-btn:hover {
+  background: linear-gradient(to bottom, #f4f4f4 0%, #e4e4e4 100%);
+}
+
+.ProseMirror {
+  outline: none;
+  font-size: 13px;
+  color: #000;
+  line-height: 1.4;
+  font-family: Arial, sans-serif;
+}
+
+/* Prompt View - System Style */
+.nc-prompt-wrapper {
+  border: 1px solid #aebac6;
+  border-radius: 2px;
+  background: #f7fbff;
+}
+
+.nc-prompt-input {
+  width: 100%;
+  min-height: 150px;
+  padding: 12px;
+  background: #ffffff;
+  color: #000;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  border: none;
+  outline: none;
+  resize: vertical;
+}
+
+.nc-prompt-text {
+  margin: 0;
+  padding: 12px;
+  white-space: pre-wrap;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  color: #000;
+  line-height: 1.4;
+}
+
+/* System Style Buttons for Content */
+.nc-copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fdfdfd;
+  background: linear-gradient(to bottom, #fdfdfd 0%, #eeeeee 100%);
+  border: 1px solid #8c8c8c;
+  color: #000;
+  padding: 2px 12px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 13px;
+  margin: 8px 12px 12px;
+  align-self: flex-start;
+  box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+}
+
+.nc-copy-btn:hover {
+  background: linear-gradient(to bottom, #f4f4f4 0%, #e4e4e4 100%);
+}
+
+.nc-footer {
+  padding: 8px 12px;
+  background-color: #f7f9fc;
+  border-top: 1px solid #dedede;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Matching the "Go to course" button style */
+.nc-save-btn {
+  background: #003366;
+  color: #ffffff;
+  border: none;
+  padding: 6px 20px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 3px;
+  font-family: Arial, sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nc-save-btn:hover {
+  background: #004488;
+}
+
+.nc-save-btn:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+}
+
+/* Spinner dots for saving - simple style */
+.spinner-dots {
+  display: flex;
+  gap: 4px;
+}
+.spinner-dots span {
+  width: 4px;
+  height: 4px;
+  background: white;
+  border-radius: 50%;
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1.0); }
+}
+
+.nc-placeholder {
+  color: #999;
+  font-size: 13px;
+  font-style: italic;
+  margin: 0;
+}
+
+/* Protection Mode - Site Style */
+.nc-modal.secure-mode {
+  user-select: none;
+  -webkit-user-select: none;
+}

@@ -1,0 +1,354 @@
+import React, { useState, useEffect } from 'react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Image from '@tiptap/extension-image';
+import Link from '@tiptap/extension-link';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../firebase';
+import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
+import { 
+  X, Save, Copy, Check, Moon, 
+  Bold, Italic, List, ListOrdered, Image as ImageIcon, 
+  Link as LinkIcon, Heading1, Heading2, Quote, Undo, Redo,
+  Sparkles, FileCode, FileText, Trash2, Download // Added icons for files
+} from 'lucide-react';
+import './NodeContentView.css';
+
+interface NodeContentViewProps {
+  nodeId: string;
+  nodeTitle: string;
+  onClose: () => void;
+}
+
+const MenuBar = ({ editor }: { editor: any }) => {
+  if (!editor) return null;
+
+  const addImage = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e: any) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (readerEvent) => {
+          const content = readerEvent.target?.result as string;
+          editor.chain().focus().setImage({ src: content }).run();
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+    input.click();
+  };
+
+  return (
+    <div className="nc-toolbar">
+      <button 
+        onClick={() => editor.chain().focus().toggleBold().run()} 
+        className={editor.isActive('bold') ? 'is-active' : ''}
+        type="button"
+      >
+        <Bold size={16} />
+      </button>
+      <button 
+        onClick={() => editor.chain().focus().toggleItalic().run()} 
+        className={editor.isActive('italic') ? 'is-active' : ''}
+        type="button"
+      >
+        <Italic size={16} />
+      </button>
+      <button 
+        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} 
+        className={editor.isActive('heading', { level: 1 }) ? 'is-active' : ''}
+        type="button"
+      >
+        <Heading1 size={16} />
+      </button>
+      <button 
+        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} 
+        className={editor.isActive('heading', { level: 2 }) ? 'is-active' : ''}
+        type="button"
+      >
+        <Heading2 size={16} />
+      </button>
+      <button 
+        onClick={() => editor.chain().focus().toggleBulletList().run()} 
+        className={editor.isActive('bulletList') ? 'is-active' : ''}
+        type="button"
+      >
+        <List size={16} />
+      </button>
+      <button 
+        onClick={() => editor.chain().focus().toggleOrderedList().run()} 
+        className={editor.isActive('orderedList') ? 'is-active' : ''}
+        type="button"
+      >
+        <ListOrdered size={16} />
+      </button>
+      <button 
+        onClick={() => editor.chain().focus().toggleBlockquote().run()} 
+        className={editor.isActive('blockquote') ? 'is-active' : ''}
+        type="button"
+      >
+        <Quote size={16} />
+      </button>
+      <button onClick={addImage} type="button">
+        <ImageIcon size={16} />
+      </button>
+      <div className="nc-toolbar-divider" />
+      <button onClick={() => editor.chain().focus().undo().run()} type="button">
+        <Undo size={16} />
+      </button>
+      <button onClick={() => editor.chain().focus().redo().run()} type="button">
+        <Redo size={16} />
+      </button>
+    </div>
+  );
+};
+
+export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeContentViewProps) {
+  const { isAdmin } = useAuth();
+  const { t } = useLanguage();
+  const [instructions, setInstructions] = useState('');
+  const [prompt, setPrompt] = useState('');
+  const [attachments, setAttachments] = useState<{name: string, data: string}[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Image.configure({
+        allowBase64: true,
+      }),
+      Link.configure({
+        openOnClick: false,
+      }),
+    ],
+    content: instructions,
+    editable: editMode,
+    onUpdate: ({ editor }) => {
+      setInstructions(editor.getHTML());
+    },
+  });
+
+  useEffect(() => {
+    if (editor && !loading) {
+      editor.setEditable(editMode);
+    }
+  }, [editMode, editor, loading]);
+
+  useEffect(() => {
+    const fetchContent = async () => {
+      try {
+        const docRef = doc(db, 'nodes_content', nodeId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const content = data.instructions || '';
+          setInstructions(content);
+          setPrompt(data.prompt || '');
+          setAttachments(data.attachments || []);
+          if (editor) {
+            editor.commands.setContent(content);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching content:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchContent();
+  }, [nodeId, editor]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await setDoc(doc(db, 'nodes_content', nodeId), {
+        instructions: editor?.getHTML() || instructions,
+        prompt,
+        attachments,
+        updatedAt: new Date().toISOString()
+      });
+      setEditMode(false);
+    } catch (error) {
+      console.error("Error saving content:", error);
+      alert("Error saving data. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(prompt);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleFileUpload = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/pdf';
+    input.onchange = (e: any) => {
+      const file = e.target.files[0];
+      if (file) {
+        if (file.size > 1024 * 1024) {
+          alert("File size limit is 1MB");
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (readerEvent) => {
+          const content = readerEvent.target?.result as string;
+          setAttachments([...attachments, { name: file.name, data: content }]);
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+    input.click();
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(attachments.filter((_, i) => i !== index));
+  };
+
+  const downloadFile = (file: {name: string, data: string}) => {
+    const link = document.createElement('a');
+    link.href = file.data;
+    link.download = file.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  if (loading) {
+    return (
+      <div className="nc-overlay">
+        <div className="nc-modal loading">
+          <div className="spinner"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="nc-overlay" onClick={onClose}>
+      <div 
+        className={`nc-modal ${!isAdmin ? 'secure-mode' : ''}`} 
+        onClick={(e) => e.stopPropagation()}
+        onContextMenu={(e) => !isAdmin && e.preventDefault()}
+      >
+        <div className="nc-header">
+          <h2>{nodeTitle}</h2>
+          <div className="nc-actions">
+            {isAdmin && (
+              <button 
+                className={`nc-btn-icon ${editMode ? 'active' : ''}`} 
+                onClick={() => setEditMode(!editMode)}
+                title={t.editModeTooltip}
+              >
+                <Moon size={18} />
+              </button>
+            )}
+            <button className="nc-btn-close" onClick={onClose}>
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        <div className="nc-content">
+          <section className="nc-section">
+            <h3 className="nc-section-title">
+              {t.instructionsTitle}
+            </h3>
+            <div className={`nc-editor-container ${editMode ? 'is-editing' : 'is-viewing'}`}>
+              {isAdmin && editMode && <MenuBar editor={editor} />}
+              <div className="nc-tiptap-wrapper">
+                <EditorContent editor={editor} />
+                {!editMode && !instructions && (
+                  <p className="nc-placeholder">{t.noInstructions}</p>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className="nc-section">
+            <h3 className="nc-section-title">
+              {t.attachmentsTitle}
+            </h3>
+            <div className="nc-attachments-container">
+              {attachments.length === 0 ? (
+                <p className="nc-placeholder">{t.noFiles}</p>
+              ) : (
+                <div className="nc-file-list">
+                  {attachments.map((file, index) => (
+                    <div key={index} className="nc-file-item">
+                      <div className="nc-file-info" onClick={() => downloadFile(file)}>
+                        <FileText size={16} className="nc-file-icon" />
+                        <span className="nc-file-name">{file.name}</span>
+                        <Download size={14} className="nc-download-hint" />
+                      </div>
+                      {isAdmin && editMode && (
+                        <button 
+                          className="nc-delete-file-btn" 
+                          onClick={() => removeAttachment(index)}
+                          title={t.deleteFile}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {isAdmin && editMode && (
+                <button className="nc-upload-pdf-btn" onClick={handleFileUpload}>
+                   <FileText size={16} />
+                   <span>{t.uploadPdfBtn}</span>
+                </button>
+              )}
+            </div>
+          </section>
+
+          <section className="nc-section">
+            <h3 className="nc-section-title">
+              {t.promptTitle}
+            </h3>
+            <div className="nc-prompt-wrapper">
+              {isAdmin && editMode ? (
+                <textarea 
+                  className="nc-prompt-input"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder={t.promptPlaceholder}
+                />
+              ) : (
+                <div className="nc-prompt-display">
+                  <pre className="nc-prompt-text">{prompt || t.noPrompt}</pre>
+                  {prompt && (
+                    <button className="nc-copy-btn" onClick={handleCopy}>
+                      {copied ? <Check size={14} /> : <Copy size={14} />}
+                      <span>{copied ? t.copied : t.copyPrompt}</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+
+        {isAdmin && editMode && (
+          <div className="nc-footer">
+            <button className="nc-save-btn" onClick={handleSave} disabled={saving}>
+              {saving ? <div className="spinner-dots"><span></span><span></span><span></span></div> : <Save size={14} />}
+              <span>{saving ? t.saving : t.saveChanges}</span>
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

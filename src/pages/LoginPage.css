@@ -1,0 +1,132 @@
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f5f5f5;
+  padding: 20px;
+}
+
+.login-card {
+  background: #ffffff;
+  border: 1px solid #d0d0d0;
+  padding: 30px 40px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.login-title {
+  font-size: 20px;
+  font-weight: 400;
+  color: #cc0033;
+  margin: 0 0 24px 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.login-error {
+  background: #fff0f0;
+  border: 1px solid #ffcccc;
+  color: #cc0000;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  border-radius: 2px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-label {
+  display: block;
+  font-size: 13px;
+  color: #666666;
+  margin-bottom: 4px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.form-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #cccccc;
+  border-radius: 0;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  transition: border-color 0.2s ease;
+}
+
+.form-input:focus {
+  border-color: #4466aa;
+}
+
+.btn-login {
+  width: 100%;
+  padding: 10px 16px;
+  background-color: #4456a6;
+  color: #ffffff;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin-top: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.btn-login:hover {
+  background-color: #3a4a90;
+}
+
+.btn-login:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-google {
+  width: 100%;
+  padding: 10px 16px;
+  background-color: #ffffff;
+  color: #333333;
+  border: 1px solid #cccccc;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.btn-google:hover {
+  background-color: #f8f8f8;
+  border-color: #aaaaaa;
+}
+
+.btn-google:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.google-icon {
+  flex-shrink: 0;
+}
+
+.login-register {
+  text-align: center;
+  margin-top: 12px;
+  font-size: 14px;
+  color: #666666;
+  cursor: pointer;
+  padding: 8px;
+  border: 1px solid #cccccc;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  transition: background-color 0.2s ease;
+}
+
+.login-register:hover {
+  background-color: #f8f8f8;
+}
