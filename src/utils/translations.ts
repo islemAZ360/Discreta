@@ -122,6 +122,15 @@ export const translations = {
     uploadPdfBtn: 'Загрузить PDF',
     deleteFile: 'Удалить',
     noFiles: 'Файлов пока нет.',
+
+    // Python IDE
+    pythonIdeTitle: 'Интегрированная среда разработки Python (IDE)',
+    runCode: 'Запустить код',
+    consoleTitle: 'Консоль',
+    clearConsole: 'Очистить консоль',
+    executing: 'Выполнение...',
+    ready: 'Готов к работе',
+    pyPlaceholder: '# Напишите свой код на Python здесь\nprint("Привет, AcademicNT!")',
   },
   en: {
     // Top Bar
@@ -244,6 +253,15 @@ export const translations = {
     uploadPdfBtn: 'Upload PDF',
     deleteFile: 'Delete',
     noFiles: 'No files yet.',
+
+    // Python IDE
+    pythonIdeTitle: 'Integrated Python IDE',
+    runCode: 'Run Code',
+    consoleTitle: 'Console',
+    clearConsole: 'Clear Console',
+    executing: 'Executing...',
+    ready: 'Ready',
+    pyPlaceholder: '# Write your Python code here\nprint("Hello, AcademicNT!")',
   },
   zh: {
     // Top Bar
@@ -346,6 +364,15 @@ export const translations = {
     thUpdated: '已更新',
     thProgress: '进度',
     
+    // Python IDE
+    pythonIdeTitle: '积成 Python IDE',
+    runCode: '运行代码',
+    consoleTitle: '控制台',
+    clearConsole: '清除控制台',
+    executing: '正在执行...',
+    ready: '准备就绪',
+    pyPlaceholder: '# 在此处编写 Python 代码\nprint("你好, AcademicNT!")',
+
     // Node Content Template
     instructionsTitle: '说明',
     promptTitle: '提示 (.md)',

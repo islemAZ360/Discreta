@@ -1,0 +1,260 @@
+.py-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+
+.py-modal {
+  background: #ffffff;
+  width: 95%;
+  max-width: 1000px;
+  height: 85vh;
+  border: 1px solid #1a5598;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.py-header {
+  background: #f7f9fa;
+  padding: 10px 16px;
+  border-bottom: 1px solid #dedede;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.py-header h2 {
+  font-size: 15px;
+  margin: 0;
+  color: #1a5598;
+  font-weight: bold;
+}
+
+.py-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.py-editor-side {
+  flex: 1.5;
+  display: flex;
+  flex-direction: column;
+  border-right: 2px solid #eaedf1;
+  position: relative;
+  background: #272822; /* Matches Prism Okaidia */
+}
+
+.py-editor-wrapper {
+  flex: 1;
+  position: relative;
+  overflow: auto;
+}
+
+.py-editor, .py-highlight-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: 16px;
+  margin: 0;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre;
+  word-wrap: normal;
+  overflow: hidden;
+  box-sizing: border-box;
+  tab-size: 4;
+}
+
+.py-editor {
+  background: transparent !important;
+  color: transparent !important;
+  caret-color: #fff;
+  z-index: 2;
+  border: none;
+  outline: none;
+  resize: none;
+}
+
+.py-highlight-layer {
+  z-index: 1;
+  pointer-events: none;
+  background: transparent !important;
+}
+
+/* Prism Overrides to match our editor exactly */
+.py-highlight-layer code {
+  font-family: inherit !important;
+  padding: 0 !important;
+  background: none !important;
+}
+
+.py-toolbar {
+  padding: 8px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.py-run-btn {
+  background: #2b5b84; /* Python Blue */
+  color: white;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: bold;
+}
+
+.py-run-btn:hover {
+  background: #3672a4;
+}
+
+.py-run-btn:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+}
+
+.py-status {
+  font-size: 12px;
+  color: #666;
+}
+
+.py-console-header {
+  padding: 8px 16px;
+  background: #252526;
+  border-bottom: 1px solid #333;
+  color: #ccc;
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.py-clear-btn {
+  background: none;
+  border: 1px solid #444;
+  color: #999;
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.py-clear-btn:hover {
+  color: #fff;
+  border-color: #666;
+}
+
+.py-console {
+  flex: 1;
+  padding: 16px;
+  margin: 0;
+  overflow-y: auto;
+  color: #dcdcdc;
+  font-family: 'Consolas', monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.py-console .output-line {
+  margin-bottom: 2px;
+}
+
+.py-console .error-line {
+  color: #f48771;
+}
+
+.py-console .error-line {
+  color: #f48771;
+}
+
+.py-close-btn {
+  background: none;
+  border: none;
+  color: #1a5598;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+/* Python Icon Style for Header */
+.python-trigger-icon {
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  margin-left: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+}
+
+.python-trigger-icon:hover {
+  transform: scale(1.1);
+}
+
+/* --- Mobile Responsiveness --- */
+@media (max-width: 600px) {
+  .py-modal {
+    width: 100%;
+    height: 100%;
+    max-height: 100vh;
+    border: none;
+    border-radius: 0;
+  }
+
+  .py-container {
+    flex-direction: column;
+  }
+
+  .py-editor-side {
+    flex: none;
+    height: 60%;
+    border-right: none;
+    border-bottom: 2px solid #eaedf1;
+  }
+
+  .py-console-side {
+    flex: none;
+    height: 40%;
+  }
+
+  .py-editor {
+    padding: 12px;
+    font-size: 13px;
+  }
+
+  .py-toolbar {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .py-run-btn {
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+
+  .py-status {
+    font-size: 11px;
+  }
+}
