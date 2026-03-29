@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "push": "git add . && git commit -m \"Update %date% %time%\" && git push origin main"
   },
   "devDependencies": {
     "typescript": "~5.9.3",
@@ -25,7 +26,6 @@
     "lucide-react": "^0.479.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "react-quill": "^2.0.0",
     "react-router-dom": "^7.13.2"
   }
 }
