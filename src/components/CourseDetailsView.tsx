@@ -1,21 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-import NodeContentView from './NodeContentView'; // Import the new component
+import { useAuth } from '../contexts/AuthContext';
+import NodeContentView from './NodeContentView';
+import CurriculumAdminModal from './CurriculumAdminModal';
+import { useCurriculum, CurriculumNode, CurriculumNodeType } from '../hooks/useCurriculum';
 import './CourseDetailsView.css';
+import { Edit2, Plus, Trash2 } from 'lucide-react';
 
 interface CourseDetailsViewProps {
   courseId: 'sem1' | 'sem2';
   onBack: () => void;
 }
 
-type CurriculumNode = {
-  id: string;
-  title: string;
-  type?: 'link' | 'text' | 'topic'; 
-  children?: CurriculumNode[];
-};
-
-const sem1Nodes: CurriculumNode[] = [
+// Initial Data setup helpers (moved inside or kept outside)
+const sem1NodesStatic: CurriculumNode[] = [
   {
     id: 's1_1', title: 'Основы теории множеств', type: 'topic', children: [
       { id: 's1_1_1', title: 'Операции над множествами [+]' },
@@ -51,7 +49,7 @@ const sem1Nodes: CurriculumNode[] = [
   }
 ];
 
-const sem2Nodes: CurriculumNode[] = [
+const sem2NodesStatic: CurriculumNode[] = [
   {
     id: 's2_1', title: 'Оптимизация на графах', type: 'topic', children: [
       {
@@ -78,7 +76,7 @@ const sem2Nodes: CurriculumNode[] = [
     ]
   },
   {
-    id: 's2_2', title: 'Теوрия сетей', type: 'topic', children: [
+    id: 's2_2', title: 'Теория сетей', type: 'topic', children: [
       { id: 's2_2_1', title: 'Поиск максимального потока в транспортной сети [+]' },
       { id: 's2_2_2', title: 'Алгоритм последовательного распространения сигнала в нейронной сети [+]' },
       { id: 's2_2_3', title: 'Алгоритм обратного распространения ошибки в перцептроне [+]' },
@@ -88,13 +86,61 @@ const sem2Nodes: CurriculumNode[] = [
   }
 ];
 
+// Helper functions for deep nested updates
+const addNodeRecursively = (nodesArray: CurriculumNode[], parentId: string, newNode: CurriculumNode): CurriculumNode[] => {
+  return nodesArray.map(node => {
+    if (node.id === parentId) {
+      return { ...node, children: [...(node.children || []), newNode] };
+    }
+    if (node.children) {
+      return { ...node, children: addNodeRecursively(node.children, parentId, newNode) };
+    }
+    return node;
+  });
+};
+
+const editNodeRecursively = (nodesArray: CurriculumNode[], nodeId: string, updatedNode: CurriculumNode): CurriculumNode[] => {
+  return nodesArray.map(node => {
+    if (node.id === nodeId) {
+      return updatedNode;
+    }
+    if (node.children) {
+      return { ...node, children: editNodeRecursively(node.children, nodeId, updatedNode) };
+    }
+    return node;
+  });
+};
+
+const deleteNodeRecursively = (nodesArray: CurriculumNode[], nodeId: string): CurriculumNode[] => {
+  return nodesArray.filter(node => node.id !== nodeId).map(node => {
+    if (node.children) {
+      return { ...node, children: deleteNodeRecursively(node.children, nodeId) };
+    }
+    return node;
+  });
+};
+
 export default function CourseDetailsView({ courseId, onBack }: CourseDetailsViewProps) {
   const { t } = useLanguage();
+  const { isAdmin } = useAuth();
+  const { nodes, loading, updateCurriculum, initDefaultCurriculum } = useCurriculum(courseId);
+  const isSem1 = courseId === 'sem1';
+
   const [activeTab, setActiveTab] = useState<'course' | 'tasks' | 'about'>('course');
   const [selectedNode, setSelectedNode] = useState<{ id: string, title: string } | null>(null);
-  
-  // Set initial default expanded states based on the layout
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  // Admin Modal State
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const [modalTargetParentId, setModalTargetParentId] = useState<string | null>(null);
+  const [nodeToEdit, setNodeToEdit] = useState<CurriculumNode | null>(null);
+
+  useEffect(() => {
+    if (!loading && nodes.length === 0) {
+      initDefaultCurriculum(isSem1 ? sem1NodesStatic : sem2NodesStatic);
+    }
+  }, [loading, nodes, isSem1, initDefaultCurriculum]);
 
   const toggleSection = (key: string) => {
     setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
@@ -104,14 +150,53 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
     setSelectedNode({ id: nodeId, title: nodeTitle });
   };
 
-  const renderTree = (nodes: CurriculumNode[], isRoot = true) => {
+  // --- Admin Functions ---
+  const openAddModal = (parentId: string | null) => {
+    setModalTargetParentId(parentId);
+    setModalMode('add');
+    setNodeToEdit(null);
+    setShowAdminModal(true);
+  };
+
+  const openEditModal = (node: CurriculumNode) => {
+    setModalMode('edit');
+    setNodeToEdit(node);
+    setShowAdminModal(true);
+  };
+
+  const deleteNode = (nodeId: string) => {
+    if (window.confirm('Вы уверены, что хотите удалить этот элемент?')) {
+      const updatedNodes = deleteNodeRecursively([...nodes], nodeId);
+      updateCurriculum(updatedNodes);
+    }
+  };
+
+  const handleModalSave = (savedNode: CurriculumNode) => {
+    if (modalMode === 'add') {
+      let updatedNodes = [...nodes];
+      if (modalTargetParentId === null) {
+        updatedNodes.push(savedNode);
+      } else {
+        updatedNodes = addNodeRecursively(updatedNodes, modalTargetParentId, savedNode);
+      }
+      updateCurriculum(updatedNodes);
+      if (modalTargetParentId) {
+        setExpanded(prev => ({...prev, [modalTargetParentId]: true})); // Auto expand parent
+      }
+    } else {
+      const updatedNodes = editNodeRecursively([...nodes], savedNode.id, savedNode);
+      updateCurriculum(updatedNodes);
+    }
+    setShowAdminModal(false);
+  };
+
+  const renderTree = (nodeArray: CurriculumNode[], isRoot = true) => {
     return (
       <ul className={isRoot ? "cd-list-root" : "cd-list-sub"}>
-        {nodes.map(node => {
+        {nodeArray.map(node => {
           const hasChildren = node.children && node.children.length > 0;
           const isExpanded = !!expanded[node.id];
-
-          // Check if leaf node is supposed to display a static plus
+          
           let actualTitle = node.title;
           let showStaticPlus = false;
           if (actualTitle.endsWith(' [+]')) {
@@ -119,30 +204,51 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
             showStaticPlus = true;
           }
 
+          const isFolder = node.type === 'topic' || hasChildren;
+
           return (
-            <li key={node.id}>
-              {hasChildren ? (
-                <span className="cd-node-wrapper" onClick={() => toggleSection(node.id)}>
-                  <span className="cd-topic-link">{actualTitle}</span>
-                  <span className="cd-bracket"> [</span>
-                  <span className="cd-toggle-icon">{isExpanded ? '−' : '+'}</span>
-                  <span className="cd-bracket">]</span>
-                </span>
-              ) : (
-                <span className="cd-node-wrapper" onClick={() => handleLeafClick(node.id, actualTitle)}>
-                  <span className={node.type === 'text' ? 'cd-text-plain' : node.type === 'link' ? 'cd-regular-link' : 'cd-item-link'}>
-                    {actualTitle}
+            <li key={node.id} className="cd-node-item">
+              <div className="cd-node-content">
+                {isFolder ? (
+                  <span className="cd-node-wrapper" onClick={() => toggleSection(node.id)}>
+                    <span className="cd-topic-link">{actualTitle}</span>
+                    <span className="cd-bracket"> [</span>
+                    <span className="cd-toggle-icon">{isExpanded ? '−' : '+'}</span>
+                    <span className="cd-bracket">]</span>
                   </span>
-                  {showStaticPlus && (
-                    <>
-                      <span className="cd-bracket"> [</span>
-                      <span className="cd-toggle-icon">+</span>
-                      <span className="cd-bracket">]</span>
-                    </>
-                  )}
-                </span>
-              )}
-              {hasChildren && isExpanded && renderTree(node.children!, false)}
+                ) : (
+                  <span className="cd-node-wrapper" onClick={() => handleLeafClick(node.id, actualTitle)}>
+                    <span className={node.type === 'text' ? 'cd-text-plain' : node.type === 'link' ? 'cd-regular-link' : 'cd-item-link'}>
+                      {actualTitle}
+                    </span>
+                    {showStaticPlus && (
+                      <>
+                        <span className="cd-bracket"> [</span>
+                        <span className="cd-toggle-icon">+</span>
+                        <span className="cd-bracket">]</span>
+                      </>
+                    )}
+                  </span>
+                )}
+                
+                {isAdmin && (
+                  <div className="cd-admin-controls" onClick={(e) => e.stopPropagation()}>
+                    {isFolder && (
+                      <button className="cd-admin-icon" onClick={() => openAddModal(node.id)} title="Добавить внутрь">
+                        <Plus size={14} />
+                      </button>
+                    )}
+                    <button className="cd-admin-icon" onClick={() => openEditModal(node)} title="Редактировать">
+                      <Edit2 size={14} />
+                    </button>
+                    <button className="cd-admin-icon delete" onClick={() => deleteNode(node.id)} title="Удалить">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {isFolder && isExpanded && (node.children ? renderTree(node.children, false) : null)}
             </li>
           );
         })}
@@ -150,26 +256,22 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
     );
   };
 
-  const isSem1 = courseId === 'sem1';
   const displayTitle = isSem1 
     ? 'Электронный курс Дискретная математика (1 семестр, 2025/2026 уч.гг.) [2025910]'
     : 'Электронный курс Дискретная математика (2 семестр, 2025/2026) [20269092]';
 
   return (
     <div className="course-details-wrapper">
-      {/* Tabs */}
       <div className="cd-tabs">
         <div className={`cd-tab ${activeTab === 'course' ? 'active' : ''}`} onClick={() => setActiveTab('course')}>{t.courseTab1}</div>
         <div className={`cd-tab ${activeTab === 'tasks' ? 'active' : ''}`} onClick={() => setActiveTab('tasks')}>{t.courseTab2}</div>
         <div className={`cd-tab ${activeTab === 'about' ? 'active' : ''}`} onClick={() => setActiveTab('about')}>{t.courseTab3}</div>
       </div>
 
-      {/* Main Content Box */}
       <div className="cd-box">
         {activeTab === 'course' && (
           <>
             <h3 className="cd-title">{displayTitle}</h3>
-            
             <div className="cd-state-row">
               <span className="cd-state-label">{t.courseState}</span>
               <select className="cd-state-select" defaultValue="0">
@@ -178,11 +280,23 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
             </div>
 
             <div className="cd-curriculum">
-              {renderTree(isSem1 ? sem1Nodes : sem2Nodes)}
+              {loading ? (
+                <div style={{ padding: '20px', color: '#666' }}>Загрузка...</div>
+              ) : (
+                <>
+                  {renderTree(nodes)}
+                  {isAdmin && (
+                    <button className="cd-admin-add-root-btn" onClick={() => openAddModal(null)}>
+                      <Plus size={16} style={{ marginRight: '6px' }} /> Добавить корневую тему
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           </>
         )}
 
+        {/* --- Other Tabs Hidden for Brevity in this specific block, but typically complete. Keeping them as original --- */}
         {activeTab === 'tasks' && (
           <>
             <div className="tasks-filter-box">
@@ -218,7 +332,6 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
               </div>
             </div>
 
-            {/* Buttons */}
             <div className="tasks-btn-row">
               <button className="task-btn">{t.btnClean}</button>
               <button className="task-btn">{t.btnShow}</button>
@@ -226,7 +339,6 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
               <button className="task-btn">{t.btnActions}</button>
             </div>
 
-            {/* Empty Table Header */}
             <div className="tasks-table-header">
               <div className="th-col th-no">{t.thNo}</div>
               <div className="th-col th-cat">{t.thCategory}</div>
@@ -248,7 +360,6 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
             </div>
             <div className="about-info">
               <span className="about-info-title">{displayTitle}</span>
-              
               <div className="about-info-row">
                 <div className="about-info-label">{t.aboutLink}</div>
                 <div className="about-info-value">
@@ -257,7 +368,6 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
                   </a>
                 </div>
               </div>
-
               <div className="about-info-row">
                 <div className="about-info-label">{t.aboutDiscipline}</div>
                 <div className="about-info-value">
@@ -269,17 +379,24 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
         )}
       </div>
 
-      {/* Footer Back Button */}
       <div className="cd-footer-actions">
         <button className="cd-back-btn" onClick={onBack}>{t.backBtn}</button>
       </div>
 
-      {/* Node Content Overlay */}
       {selectedNode && (
         <NodeContentView 
           nodeId={selectedNode.id} 
           nodeTitle={selectedNode.title} 
           onClose={() => setSelectedNode(null)} 
+        />
+      )}
+
+      {showAdminModal && (
+        <CurriculumAdminModal 
+          mode={modalMode}
+          initialNode={nodeToEdit}
+          onClose={() => setShowAdminModal(false)}
+          onSave={handleModalSave}
         />
       )}
     </div>

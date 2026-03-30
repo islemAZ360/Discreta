@@ -84,9 +84,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           
           if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
-            setIsAdmin(userData.role === 'admin');
+            setIsAdmin(userData.role === 'admin' || user.email === 'islamadmine@gmail.com');
           } else {
-            setIsAdmin(false);
+            setIsAdmin(user.email === 'islamadmine@gmail.com');
           }
         } catch (error) {
           console.error("Error fetching user role:", error);

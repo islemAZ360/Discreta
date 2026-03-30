@@ -112,7 +112,7 @@ export default function DashboardPage() {
           {currentView === 'home' ? (
             <>
               <div className="courses-grid" style={{ marginTop: '16px' }}>
-                {/* Мربع فارغ */}
+                {/* Пустой квадрат */}
               </div>
 
               {/* News Section */}
