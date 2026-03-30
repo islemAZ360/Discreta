@@ -4,14 +4,15 @@ import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'; // Added Storage utilities
+import { db, storage } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { 
   X, Save, Copy, Check, Moon, 
   Bold, Italic, List, ListOrdered, Image as ImageIcon, 
   Link as LinkIcon, Heading1, Heading2, Quote, Undo, Redo,
-  Sparkles, FileCode, FileText, Trash2, Download // Added icons for files
+  Sparkles, FileCode, FileText, Trash2, Download, PlusCircle // Added PlusCircle
 } from 'lucide-react';
 import './NodeContentView.css';
 
@@ -112,7 +113,7 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
   const { t } = useLanguage();
   const [instructions, setInstructions] = useState('');
   const [prompt, setPrompt] = useState('');
-  const [attachments, setAttachments] = useState<{name: string, data: string}[]>([]);
+  const [attachments, setAttachments] = useState<{name: string, data: string, storagePath?: string}[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -193,26 +194,65 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'application/pdf';
-    input.onchange = (e: any) => {
-      const file = e.target.files[0];
-      if (file) {
-        if (file.size > 1024 * 1024) {
-          alert("File size limit is 1MB");
-          return;
+    input.multiple = true; // Allow multiple selection
+    input.onchange = async (e: any) => {
+      const files = Array.from(e.target.files) as File[];
+      if (files.length === 0) return;
+
+      setSaving(true);
+      const newAttachments = [...attachments];
+
+      for (const file of files) {
+        // Size check (e.g. 10MB per file since it's Storage now)
+        if (file.size > 10 * 1024 * 1024) {
+          alert(`${file.name} is too large. 10MB max per file.`);
+          continue;
         }
-        const reader = new FileReader();
-        reader.onload = (readerEvent) => {
-          const content = readerEvent.target?.result as string;
-          setAttachments([...attachments, { name: file.name, data: content }]);
-        };
-        reader.readAsDataURL(file);
+
+        try {
+          const storagePath = `nodes/${nodeId}/${Date.now()}_${file.name}`;
+          const storageRef = ref(storage, storagePath);
+          await uploadBytes(storageRef, file);
+          const downloadURL = await getDownloadURL(storageRef);
+          
+          newAttachments.push({ 
+            name: file.name, 
+            data: downloadURL,
+            storagePath: storagePath // Keep path to delete later
+          });
+        } catch (error) {
+          console.error("Error uploading file:", error);
+          alert(`Could not upload ${file.name}`);
+        }
       }
+
+      setAttachments(newAttachments);
+      setSaving(false);
     };
     input.click();
   };
 
-  const removeAttachment = (index: number) => {
-    setAttachments(attachments.filter((_, i) => i !== index));
+  const removeAttachment = async (index: number) => {
+    const fileToRemove = attachments[index] as any;
+    
+    if (confirm(`Do you want to delete ${fileToRemove.name}?`)) {
+      setSaving(true);
+      try {
+        // If it has a storagePath, delete it from Firebase Storage
+        if (fileToRemove.storagePath) {
+          const storageRef = ref(storage, fileToRemove.storagePath);
+          await deleteObject(storageRef);
+        }
+        
+        setAttachments(attachments.filter((_, i) => i !== index));
+      } catch (error) {
+        console.error("Error deleting from storage:", error);
+        // Still remove from state even if storage delete fails (maybe it was manually deleted already)
+        setAttachments(attachments.filter((_, i) => i !== index));
+      } finally {
+        setSaving(false);
+      }
+    }
   };
 
   const downloadFile = (file: {name: string, data: string}) => {
@@ -305,9 +345,13 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
                 </div>
               )}
               {isAdmin && editMode && (
-                <button className="nc-upload-pdf-btn" onClick={handleFileUpload}>
-                   <FileText size={16} />
-                   <span>{t.uploadPdfBtn}</span>
+                <button 
+                  className="nc-upload-pdf-btn" 
+                  onClick={handleFileUpload}
+                  disabled={saving}
+                >
+                   {saving ? <div className="spinner-small"></div> : <PlusCircle size={16} />}
+                   <span>{saving ? t.saving : t.uploadPdfBtn}</span>
                 </button>
               )}
             </div>
