@@ -384,3 +384,55 @@
 .popup-btn:hover {
   background-color: #e8e8e8;
 }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .filter-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  .filter-label {
+    width: 100%;
+    font-weight: bold;
+  }
+
+  .ed-course-card {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px;
+  }
+
+  .ed-course-left {
+    width: 100%;
+    margin-right: 0;
+    margin-bottom: 12px;
+    flex-direction: row;
+    gap: 12px;
+  }
+
+  .ed-course-image {
+    width: 80px;
+    min-width: 80px;
+    margin-bottom: 0;
+  }
+
+  .ed-course-center {
+    margin-bottom: 12px;
+  }
+
+  .ed-course-right {
+    align-items: flex-start;
+    min-width: 0;
+    border-top: 1px solid #7c9eb2;
+    padding-top: 8px;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .ed-course-id {
+    margin-top: 0;
+  }
+}

@@ -294,3 +294,16 @@ code {
     border-right-color: var(--border);
   }
 }
+
+/* Responsive Utilities - Only affective on small screens */
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .show-mobile {
+    display: none !important;
+  }
+}

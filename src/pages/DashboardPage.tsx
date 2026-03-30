@@ -6,6 +6,7 @@ import CourseDetailsView from '../components/CourseDetailsView';
 import TopBarBadges from '../components/TopBarBadges';
 import PythonIDE, { PythonLogo } from '../components/PythonIDE';
 import { useLanguage } from '../contexts/LanguageContext';
+import { Menu, X } from 'lucide-react';
 import './DashboardPage.css';
 
 export default function DashboardPage() {
@@ -13,6 +14,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const [currentView, setCurrentView] = useState<'home' | 'education' | 'course-details-1' | 'course-details-2'>('home');
   const [showPythonIDE, setShowPythonIDE] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { t } = useLanguage();
 
   const handleLogout = async () => {
@@ -27,10 +29,18 @@ export default function DashboardPage() {
   const isCourseView = currentView === 'course-details-1' || currentView === 'course-details-2';
 
   return (
-    <div className="dashboard">
+    <div className={`dashboard ${isSidebarOpen ? 'sidebar-open' : ''}`}>
       {/* Header */}
       <header className="dashboard-header">
         <div className="header-left">
+          {/* Hamburger Menu for Mobile */}
+          <button 
+            className="mobile-menu-toggle show-mobile" 
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            aria-label="Toggle menu"
+          >
+            {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
           <div 
             className="academic-logo" 
             title="На главную" 
@@ -57,8 +67,11 @@ export default function DashboardPage() {
       </header>
 
       <div className="dashboard-body">
+        {/* Sidebar Overlay for Mobile */}
+        {isSidebarOpen && <div className="sidebar-overlay show-mobile" onClick={() => setIsSidebarOpen(false)}></div>}
+
         {/* Sidebar */}
-        <aside className="dashboard-sidebar">
+        <aside className={`dashboard-sidebar ${isSidebarOpen ? 'open' : ''}`}>
           <ul className="sidebar-menu">
             <li><a href="#" className={`sidebar-link ${currentView === 'education' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); setCurrentView('education'); }}>{t.education}</a></li>
             <li><a href="#" className="sidebar-link" onClick={(e) => e.preventDefault()}>{t.achievements}</a></li>
@@ -87,7 +100,7 @@ export default function DashboardPage() {
         </aside>
 
         {/* Main Content */}
-        <main className="dashboard-main">
+        <main className="dashboard-main" onClick={() => isSidebarOpen && setIsSidebarOpen(false)}>
           {/* Unified global right-side header */}
           <div className="main-content-header" style={{ borderBottom: isCourseView ? 'none' : '', marginBottom: isCourseView ? '0' : '8px' }}>
             <h2 className="main-content-title">
