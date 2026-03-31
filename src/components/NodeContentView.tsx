@@ -119,6 +119,7 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
   const [copied, setCopied] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<Record<string, number>>({});
+  const [activeUploads, setActiveUploads] = useState(0); // Track active count
   const [isDirty, setIsDirty] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
 
@@ -270,62 +271,57 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
     input.type = 'file';
     input.accept = 'application/pdf';
     input.multiple = true;
-    input.onchange = async (e: any) => {
+    input.onchange = (e: any) => {
       const files = Array.from(e.target.files) as File[];
       if (files.length === 0) return;
 
-      setSaving(true);
+      setActiveUploads(prev => prev + files.length);
       
-      const uploadPromises = files.map(async (file) => {
-        if (file.size > 20 * 1024 * 1024) { // Increased to 20MB
+      files.forEach((file) => {
+        if (file.size > 20 * 1024 * 1024) { 
           alert(`${file.name} is too large. 20MB max.`);
-          return null;
+          setActiveUploads(prev => Math.max(0, prev - 1));
+          return;
         }
 
-        return new Promise<{name: string, data: string, storagePath: string} | null>((resolve) => {
-          const storagePath = `nodes/${nodeId}/${Date.now()}_${file.name}`;
-          const storageRef = ref(storage, storagePath);
-          const uploadTask = uploadBytesResumable(storageRef, file);
+        const storagePath = `nodes/${nodeId}/${Date.now()}_${file.name}`;
+        const storageRef = ref(storage, storagePath);
+        const uploadTask = uploadBytesResumable(storageRef, file);
 
-          uploadTask.on('state_changed', 
-            (snapshot) => {
-              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-              setUploadingFiles(prev => ({ ...prev, [file.name]: Math.round(progress) }));
-            }, 
-            (error) => {
-              console.error("Upload error:", error);
-              alert(`Could not upload ${file.name}`);
-              setUploadingFiles(prev => {
-                const newState = { ...prev };
-                delete newState[file.name];
-                return newState;
-              });
-              resolve(null);
-            }, 
-            async () => {
-              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-              setUploadingFiles(prev => {
-                const newState = { ...prev };
-                delete newState[file.name];
-                return newState;
-              });
-              resolve({ 
-                name: file.name, 
-                data: downloadURL,
-                storagePath: storagePath 
-              });
-            }
-          );
-        });
+        uploadTask.on('state_changed', 
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadingFiles(prev => ({ ...prev, [file.name]: Math.round(progress) }));
+          }, 
+          (error) => {
+            console.error("Upload error:", error);
+            alert(`Could not upload ${file.name}`);
+            setUploadingFiles(prev => {
+              const newState = { ...prev };
+              delete newState[file.name];
+              return newState;
+            });
+            setActiveUploads(prev => Math.max(0, prev - 1));
+          }, 
+          async () => {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            
+            // INDIVIDUAL FILE COMPLETION - ADD IMMEDIATELY TO LIST
+            setAttachments(prev => [...prev, { 
+              name: file.name, 
+              data: downloadURL,
+              storagePath: storagePath 
+            }]);
+
+            setUploadingFiles(prev => {
+              const newState = { ...prev };
+              delete newState[file.name];
+              return newState;
+            });
+            setActiveUploads(prev => Math.max(0, prev - 1));
+          }
+        );
       });
-
-      const results = await Promise.all(uploadPromises);
-      const successfulUploads = results.filter(r => r !== null) as any[];
-      
-      if (successfulUploads.length > 0) {
-        setAttachments(prev => [...prev, ...successfulUploads]);
-      }
-      setSaving(false);
     };
     input.click();
   };
@@ -545,9 +541,13 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
 
         {isAdmin && editMode && (
           <div className="nc-footer">
-            <button className="nc-save-btn" onClick={handleSave} disabled={saving}>
-              {saving ? <div className="spinner-dots"><span></span><span></span><span></span></div> : <Save size={14} />}
-              <span>{saving ? t.saving : t.saveChanges}</span>
+            <button className="nc-save-btn" onClick={handleSave} disabled={saving || activeUploads > 0}>
+              {saving || activeUploads > 0 ? (
+                <div className="spinner-dots"><span></span><span></span><span></span></div>
+              ) : (
+                <Save size={14} />
+              )}
+              <span>{saving || activeUploads > 0 ? t.saving : t.saveChanges}</span>
             </button>
           </div>
         )}
