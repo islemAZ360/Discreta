@@ -218,6 +218,12 @@
   color: #ff4d4f;
 }
 
+.nc-upload-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .nc-upload-pdf-btn {
   display: flex;
   align-items: center;
@@ -231,6 +237,11 @@
   cursor: pointer;
   font-size: 13px;
   box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+}
+
+.nc-upload-pdf-btn.secondary {
+  border-color: #1a5598;
+  color: #1a5598;
 }
 
 .nc-upload-pdf-btn:hover {
@@ -464,4 +475,53 @@
 .nc-upload-pdf-btn:disabled {
   opacity: 0.7;
   cursor: wait;
+}
+
+/* --- Parallel Upload Progress --- */
+.nc-uploading-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+  background: #fdfdfd;
+  border: 1px dashed #1a5598;
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.nc-uploading-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nc-uploading-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #1a5598;
+  font-weight: bold;
+}
+
+.nc-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: #e0e0e0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.nc-progress-fill {
+  height: 100%;
+  background: #1a5598;
+  transition: width 0.3s ease;
+}
+
+.nc-external-icon {
+  color: #1a5598;
+  opacity: 0.7;
+}
+
+.nc-external-icon:hover {
+  opacity: 1;
 }

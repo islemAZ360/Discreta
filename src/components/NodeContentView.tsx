@@ -4,7 +4,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'; // Added Storage utilities
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -12,7 +12,7 @@ import {
   X, Save, Copy, Check, Edit2, 
   Bold, Italic, List, ListOrdered, Image as ImageIcon, 
   Link as LinkIcon, Heading1, Heading2, Quote, Undo, Redo,
-  Sparkles, FileCode, FileText, Trash2, Download, PlusCircle 
+  Sparkles, FileCode, FileText, Trash2, Download, PlusCircle, Link2
 } from 'lucide-react';
 import './NodeContentView.css';
 
@@ -118,6 +118,7 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState<Record<string, number>>({});
 
   const editor = useEditor({
     extensions: [
@@ -210,42 +211,81 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'application/pdf';
-    input.multiple = true; // Allow multiple selection
+    input.multiple = true;
     input.onchange = async (e: any) => {
       const files = Array.from(e.target.files) as File[];
       if (files.length === 0) return;
 
       setSaving(true);
-      const newAttachments = [...attachments];
-
-      for (const file of files) {
-        // Size check (e.g. 10MB per file since it's Storage now)
-        if (file.size > 10 * 1024 * 1024) {
-          alert(`${file.name} is too large. 10MB max per file.`);
-          continue;
+      
+      const uploadPromises = files.map(async (file) => {
+        if (file.size > 20 * 1024 * 1024) { // Increased to 20MB
+          alert(`${file.name} is too large. 20MB max.`);
+          return null;
         }
 
-        try {
+        return new Promise<{name: string, data: string, storagePath: string} | null>((resolve) => {
           const storagePath = `nodes/${nodeId}/${Date.now()}_${file.name}`;
           const storageRef = ref(storage, storagePath);
-          await uploadBytes(storageRef, file);
-          const downloadURL = await getDownloadURL(storageRef);
-          
-          newAttachments.push({ 
-            name: file.name, 
-            data: downloadURL,
-            storagePath: storagePath // Keep path to delete later
-          });
-        } catch (error) {
-          console.error("Error uploading file:", error);
-          alert(`Could not upload ${file.name}`);
-        }
-      }
+          const uploadTask = uploadBytesResumable(storageRef, file);
 
-      setAttachments(newAttachments);
+          uploadTask.on('state_changed', 
+            (snapshot) => {
+              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+              setUploadingFiles(prev => ({ ...prev, [file.name]: Math.round(progress) }));
+            }, 
+            (error) => {
+              console.error("Upload error:", error);
+              alert(`Could not upload ${file.name}`);
+              setUploadingFiles(prev => {
+                const newState = { ...prev };
+                delete newState[file.name];
+                return newState;
+              });
+              resolve(null);
+            }, 
+            async () => {
+              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+              setUploadingFiles(prev => {
+                const newState = { ...prev };
+                delete newState[file.name];
+                return newState;
+              });
+              resolve({ 
+                name: file.name, 
+                data: downloadURL,
+                storagePath: storagePath 
+              });
+            }
+          );
+        });
+      });
+
+      const results = await Promise.all(uploadPromises);
+      const successfulUploads = results.filter(r => r !== null) as any[];
+      
+      if (successfulUploads.length > 0) {
+        setAttachments(prev => [...prev, ...successfulUploads]);
+      }
       setSaving(false);
     };
     input.click();
+  };
+
+  const handleAddExternalLink = () => {
+    const url = window.prompt("Введите прямую ссылку на PDF (Google Drive direct link, Cloud, etc.):");
+    if (!url) return;
+    
+    // Basic validation
+    if (!url.startsWith('http')) {
+      alert("Некорректная ссылка. Должна начинаться مع http:// أو https://");
+      return;
+    }
+
+    const name = window.prompt("Введите название для этого файла:", "Внешний документ.pdf");
+    if (!name) return;
+
+    setAttachments(prev => [...prev, { name, data: url }]);
   };
 
   const removeAttachment = async (index: number) => {
@@ -336,7 +376,22 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
               {t.attachmentsTitle}
             </h3>
             <div className="nc-attachments-container">
-              {attachments.length === 0 ? (
+              {Object.keys(uploadingFiles).length > 0 && (
+                <div className="nc-uploading-list">
+                  {Object.entries(uploadingFiles).map(([name, progress]) => (
+                    <div key={name} className="nc-uploading-item">
+                      <div className="nc-uploading-info">
+                        <span className="nc-uploading-name">Загрузка: {name}</span>
+                        <span className="nc-uploading-percent">{progress}%</span>
+                      </div>
+                      <div className="nc-progress-bar">
+                        <div className="nc-progress-fill" style={{ width: `${progress}%` }}></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {attachments.length === 0 && Object.keys(uploadingFiles).length === 0 ? (
                 <p className="nc-placeholder">{t.noFiles}</p>
               ) : (
                 <div className="nc-file-list">
@@ -345,6 +400,9 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
                       <div className="nc-file-info" onClick={() => downloadFile(file)}>
                         <FileText size={16} className="nc-file-icon" />
                         <span className="nc-file-name">{file.name}</span>
+                        {file.data.startsWith('http') && !file.data.includes('firebasestorage') && (
+                           <span title="Внешняя ссылка"><Link2 size={12} className="nc-external-icon" /></span>
+                        )}
                         <Download size={14} className="nc-download-hint" />
                       </div>
                       {isAdmin && editMode && (
@@ -361,14 +419,24 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
                 </div>
               )}
               {isAdmin && editMode && (
-                <button 
-                  className="nc-upload-pdf-btn" 
-                  onClick={handleFileUpload}
-                  disabled={saving}
-                >
-                   {saving ? <div className="spinner-small"></div> : <PlusCircle size={16} />}
-                   <span>{saving ? t.saving : t.uploadPdfBtn}</span>
-                </button>
+                <div className="nc-upload-actions">
+                  <button 
+                    className="nc-upload-pdf-btn" 
+                    onClick={handleFileUpload}
+                    disabled={saving}
+                  >
+                     {saving ? <div className="spinner-small"></div> : <PlusCircle size={16} />}
+                     <span>{saving ? 'Загрузка...' : t.uploadPdfBtn}</span>
+                  </button>
+                  <button 
+                    className="nc-upload-pdf-btn secondary" 
+                    onClick={handleAddExternalLink}
+                    disabled={saving}
+                  >
+                     <Link2 size={16} />
+                     <span>Добавить ссылку</span>
+                  </button>
+                </div>
               )}
             </div>
           </section>
