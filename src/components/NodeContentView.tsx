@@ -119,6 +119,8 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
   const [copied, setCopied] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<Record<string, number>>({});
+  const [isDirty, setIsDirty] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -149,30 +151,49 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
       try {
         const docRef = doc(db, 'nodes_content', nodeId);
         const docSnap = await getDoc(docRef);
+        
+        // Initial defaults
+        let finalInstructions = '';
+        let finalPrompt = '';
+        let finalAttachments: any[] = [];
+
         if (docSnap.exists()) {
           const data = docSnap.data();
-          const content = data.instructions || '';
-          setInstructions(content);
-          setPrompt(data.prompt || '');
-          setAttachments(data.attachments || []);
-          if (editor) {
-            editor.commands.setContent(content);
+          finalInstructions = data.instructions || '';
+          finalPrompt = data.prompt || '';
+          finalAttachments = data.attachments || [];
+        }
+
+        // --- CHECK FOR LOCAL DRAFT ---
+        const savedDraft = localStorage.getItem(`draft_${nodeId}`);
+        if (savedDraft) {
+          try {
+            const draft = JSON.parse(savedDraft);
+            // If draft is different from Firestore, restore it!
+            if (draft.instructions !== finalInstructions || draft.prompt !== finalPrompt || JSON.stringify(draft.attachments) !== JSON.stringify(finalAttachments)) {
+              finalInstructions = draft.instructions;
+              finalPrompt = draft.prompt;
+              finalAttachments = draft.attachments;
+              setDraftRestored(true);
+              setIsDirty(true);
+              setTimeout(() => setDraftRestored(false), 3000);
+            }
+          } catch (e) {
+            console.error("Error parsing draft", e);
           }
-          setEditMode(false); // Default to view mode for existing content
+        }
+
+        setInstructions(finalInstructions);
+        setPrompt(finalPrompt);
+        setAttachments(finalAttachments);
+        if (editor) {
+          editor.commands.setContent(finalInstructions);
+        }
+
+        if (docSnap.exists()) {
+          setEditMode(false);
         } else {
-          // RESET STATE for new/empty nodes
-          setInstructions('');
-          setPrompt('');
-          setAttachments([]);
-          if (editor) {
-            editor.commands.setContent('');
-          }
-          // AUTO-EDIT: If it's a new node and it's an Admin, enable edit mode immediately
-          if (isAdmin) {
-             setEditMode(true);
-          } else {
-             setEditMode(false);
-          }
+          if (isAdmin) setEditMode(true);
         }
       } catch (error) {
         console.error("Error fetching content:", error);
@@ -183,6 +204,41 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
     fetchContent();
   }, [nodeId, editor, isAdmin]);
 
+  // --- AUTO-SAVE DRAFT EFFECT ---
+  useEffect(() => {
+    if (!loading && editMode && isAdmin) {
+      const draft = {
+        instructions,
+        prompt,
+        attachments,
+        timestamp: Date.now()
+      };
+      const timer = setTimeout(() => {
+        localStorage.setItem(`draft_${nodeId}`, JSON.stringify(draft));
+      }, 1000); // Save every 1 sec of inactivity
+      return () => clearTimeout(timer);
+    }
+  }, [instructions, prompt, attachments, nodeId, loading, editMode, isAdmin]);
+
+  // --- UNSAVED CHANGES WARNING (TAB CLOSE) ---
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
+  // Track changes to mark as dirty
+  useEffect(() => {
+    if (!loading && editMode) {
+      setIsDirty(true);
+    }
+  }, [instructions, prompt, attachments]);
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -192,6 +248,8 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
         attachments,
         updatedAt: new Date().toISOString()
       });
+      localStorage.removeItem(`draft_${nodeId}`); // Clear draft!
+      setIsDirty(false);
       setEditMode(false);
     } catch (error) {
       console.error("Error saving content:", error);
@@ -320,6 +378,16 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
     document.body.removeChild(link);
   };
 
+  const handleSafeClose = () => {
+    if (isDirty) {
+      if (window.confirm("У вас есть несохраненные изменения (черновик сохранен локально). Вы уверены, что хотите выйти?")) {
+        onClose();
+      }
+    } else {
+      onClose();
+    }
+  };
+
   if (loading) {
     return (
       <div className="nc-overlay">
@@ -349,11 +417,17 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
                 <Edit2 size={18} />
               </button>
             )}
-            <button className="nc-btn-close" onClick={onClose}>
+            <button className="nc-btn-close" onClick={handleSafeClose}>
               <X size={20} />
             </button>
           </div>
         </div>
+
+        {draftRestored && (
+          <div className="nc-draft-alert">
+            <Sparkles size={14} /> <span>Черновик автоматически восстановлен</span>
+          </div>
+        )}
 
         <div className="nc-content">
           <section className="nc-section">
