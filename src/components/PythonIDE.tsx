@@ -243,14 +243,14 @@ plt.close('all')
         const missingPkg = match[1];
         
         if (installedPackagesRef.current.has(missingPkg)) {
-          pushLogToConsole(targetConsoleId, `[System] Unresolvable Error trying to load library '${missingPkg}'.`);
+          pushLogToConsole(targetConsoleId, `[Система] Неустранимая ошибка при загрузке библиотеки '${missingPkg}'.`);
           setIsExecuting(false);
           setStatus(t.ready);
           return;
         }
 
         installedPackagesRef.current.add(missingPkg);
-        pushLogToConsole(targetConsoleId, `[System] Missing library '${missingPkg}' detected. Auto-installing...`);
+        pushLogToConsole(targetConsoleId, `[Система] Обнаружена отсутствующая библиотека '${missingPkg}'. Автоматическая установка...`);
         setStatus(`Installing ${missingPkg}...`);
         
         try {
@@ -260,7 +260,7 @@ import micropip
 await micropip.install('${missingPkg}')
           `);
           
-          pushLogToConsole(targetConsoleId, `[System] Successfully installed '${missingPkg}'. Re-running code...`);
+          pushLogToConsole(targetConsoleId, `[Система] Успешно установлено '${missingPkg}'. Повторный запуск кода...`);
           
           if (currentUser) {
             try {
@@ -279,13 +279,24 @@ await micropip.install('${missingPkg}')
         } catch (installErr: any) {
           const errMsg = installErr.message || "";
           if (errMsg.includes("Can't find a pure Python 3 wheel")) {
-             pushLogToConsole(targetConsoleId, `[System] ⛔ عذراً! المكتبة '${missingPkg}' مبرمجة جزئياً بلغة (C/C++) ولا تملك نسخة متوافقة مع محرك المتصفح (WebAssembly) حالياً.`);
+             try {
+                pushLogToConsole(targetConsoleId, `[Система] ⚠️ Обнаружена зависимость C/C++. Попытка умной установки (Smart Fallback)...`);
+                // Load built-in heavy data science packages that usually trigger this error
+                await pyodideRef.current.loadPackage(['scikit-learn', 'pandas', 'numpy', 'scipy']);
+                // Force install the target package without strict dependency resolution tracking
+                await pyodideRef.current.runPythonAsync(`await micropip.install('${missingPkg}', deps=False)`);
+                pushLogToConsole(targetConsoleId, `[Система] Умная установка '${missingPkg}' завершена. Повторный запуск кода...`);
+                await executeCodeContext(userCode, targetConsoleId, true);
+                return;
+             } catch (forceErr: any) {
+                pushLogToConsole(targetConsoleId, `[Система] ⛔ Извините! Библиотека '${missingPkg}' полностью несовместима с WebAssembly: ${forceErr.message}`);
+             }
           } else {
-             pushLogToConsole(targetConsoleId, `[System] ⛔ فشل التثبيت التلقائي '${missingPkg}': ${errMsg}`);
+             pushLogToConsole(targetConsoleId, `[Система] ⛔ Ошибка автоматической установки '${missingPkg}': ${errMsg}`);
           }
         }
       } else {
-        pushLogToConsole(targetConsoleId, `[Python Error] ${errorMsg}`);
+        pushLogToConsole(targetConsoleId, `[Ошибка Python] ${errorMsg}`);
       }
       
       setIsExecuting(false);
