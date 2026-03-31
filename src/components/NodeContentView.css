@@ -477,46 +477,7 @@
   cursor: wait;
 }
 
-/* --- Parallel Upload Progress --- */
-.nc-uploading-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 16px;
-  background: #fdfdfd;
-  border: 1px dashed #1a5598;
-  padding: 10px;
-  border-radius: 4px;
-}
-
-.nc-uploading-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.nc-uploading-info {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: #1a5598;
-  font-weight: bold;
-}
-
-.nc-progress-bar {
-  width: 100%;
-  height: 6px;
-  background: #e0e0e0;
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.nc-progress-fill {
-  height: 100%;
-  background: #1a5598;
-  transition: width 0.3s ease;
-}
-
+/* --- External Link Styling --- */
 .nc-external-icon {
   color: #1a5598;
   opacity: 0.7;
@@ -536,20 +497,6 @@
   font-size: 11px;
   color: #857b26;
   animation: slideDown 0.3s ease-out;
-}
-
-.nc-upload-warning {
-  width: 100%;
-  font-size: 11px;
-  color: #d97706;
-  background-color: #fffbeb;
-  border: 1px solid #fef3c7;
-  padding: 6px 10px;
-  border-radius: 4px;
-  margin: 12px 0 0 0;
-  line-height: 1.4;
-  font-weight: normal;
-  font-style: italic;
 }
 
 @keyframes slideDown {

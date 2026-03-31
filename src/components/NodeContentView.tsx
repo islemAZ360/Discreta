@@ -4,15 +4,14 @@ import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from '../firebase';
+import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { 
   X, Save, Copy, Check, Edit2, 
   Bold, Italic, List, ListOrdered, Image as ImageIcon, 
   Link as LinkIcon, Heading1, Heading2, Quote, Undo, Redo,
-  Sparkles, FileCode, FileText, Trash2, Download, PlusCircle, Link2
+  Sparkles, FileCode, FileText, Trash2, Download, Link2
 } from 'lucide-react';
 import './NodeContentView.css';
 
@@ -118,8 +117,6 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [uploadingFiles, setUploadingFiles] = useState<Record<string, number>>({});
-  const [activeUploads, setActiveUploads] = useState(0); // Track active count
   const [isDirty, setIsDirty] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
 
@@ -128,9 +125,6 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
       StarterKit,
       Image.configure({
         allowBase64: true,
-      }),
-      Link.configure({
-        openOnClick: false,
       }),
     ],
     content: instructions,
@@ -266,73 +260,12 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleFileUpload = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/pdf';
-    input.multiple = true;
-    input.onchange = (e: any) => {
-      const files = Array.from(e.target.files) as File[];
-      if (files.length === 0) return;
-
-      setActiveUploads(prev => prev + files.length);
-      
-      files.forEach((file) => {
-        if (file.size > 20 * 1024 * 1024) { 
-          alert(`${file.name} is too large. 20MB max.`);
-          setActiveUploads(prev => Math.max(0, prev - 1));
-          return;
-        }
-
-        const storagePath = `nodes/${nodeId}/${Date.now()}_${file.name}`;
-        const storageRef = ref(storage, storagePath);
-        const uploadTask = uploadBytesResumable(storageRef, file);
-
-        uploadTask.on('state_changed', 
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadingFiles(prev => ({ ...prev, [file.name]: Math.round(progress) }));
-          }, 
-          (error) => {
-            console.error("Upload error:", error);
-            alert(`Could not upload ${file.name}`);
-            setUploadingFiles(prev => {
-              const newState = { ...prev };
-              delete newState[file.name];
-              return newState;
-            });
-            setActiveUploads(prev => Math.max(0, prev - 1));
-          }, 
-          async () => {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            
-            // INDIVIDUAL FILE COMPLETION - ADD IMMEDIATELY TO LIST
-            setAttachments(prev => [...prev, { 
-              name: file.name, 
-              data: downloadURL,
-              storagePath: storagePath 
-            }]);
-
-            setUploadingFiles(prev => {
-              const newState = { ...prev };
-              delete newState[file.name];
-              return newState;
-            });
-            setActiveUploads(prev => Math.max(0, prev - 1));
-          }
-        );
-      });
-    };
-    input.click();
-  };
-
   const handleAddExternalLink = () => {
     const url = window.prompt("Введите прямую ссылку на PDF (Google Drive direct link, Cloud, etc.):");
     if (!url) return;
     
-    // Basic validation
     if (!url.startsWith('http')) {
-      alert("Некорректная ссылка. Должна начинаться مع http:// أو https://");
+      alert("Некорректная ссылка. Должна начинаться с http:// или https://");
       return;
     }
 
@@ -342,33 +275,32 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
     setAttachments(prev => [...prev, { name, data: url }]);
   };
 
-  const removeAttachment = async (index: number) => {
+  const removeAttachment = (index: number) => {
     const fileToRemove = attachments[index] as any;
-    
     if (confirm(`Do you want to delete ${fileToRemove.name}?`)) {
-      setSaving(true);
-      try {
-        // If it has a storagePath, delete it from Firebase Storage
-        if (fileToRemove.storagePath) {
-          const storageRef = ref(storage, fileToRemove.storagePath);
-          await deleteObject(storageRef);
-        }
-        
-        setAttachments(attachments.filter((_, i) => i !== index));
-      } catch (error) {
-        console.error("Error deleting from storage:", error);
-        // Still remove from state even if storage delete fails (maybe it was manually deleted already)
-        setAttachments(attachments.filter((_, i) => i !== index));
-      } finally {
-        setSaving(false);
-      }
+      setAttachments(attachments.filter((_, i) => i !== index));
     }
   };
 
   const downloadFile = (file: {name: string, data: string}) => {
+    let url = file.data;
+    
+    // Smart URL Parsing for Direct Downloads
+    if (url.includes('drive.google.com/file/d/')) {
+      // Convert Google Drive view link to direct download link
+      const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) {
+        url = `https://drive.google.com/uc?export=download&id=${match[1]}`;
+      }
+    } else if (url.includes('dropbox.com/') && url.includes('dl=0')) {
+      // Convert Dropbox view link to direct download link
+      url = url.replace('dl=0', 'dl=1');
+    }
+
     const link = document.createElement('a');
-    link.href = file.data;
-    link.download = file.name;
+    link.href = url;
+    link.download = file.name || 'document';
+    link.target = '_blank'; // Fallback if browser blocks standard download due to CORS
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -446,22 +378,7 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
               {t.attachmentsTitle}
             </h3>
             <div className="nc-attachments-container">
-              {Object.keys(uploadingFiles).length > 0 && (
-                <div className="nc-uploading-list">
-                  {Object.entries(uploadingFiles).map(([name, progress]) => (
-                    <div key={name} className="nc-uploading-item">
-                      <div className="nc-uploading-info">
-                        <span className="nc-uploading-name">Загрузка: {name}</span>
-                        <span className="nc-uploading-percent">{progress}%</span>
-                      </div>
-                      <div className="nc-progress-bar">
-                        <div className="nc-progress-fill" style={{ width: `${progress}%` }}></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {attachments.length === 0 && Object.keys(uploadingFiles).length === 0 ? (
+              {attachments.length === 0 ? (
                 <p className="nc-placeholder">{t.noFiles}</p>
               ) : (
                 <div className="nc-file-list">
@@ -470,7 +387,7 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
                       <div className="nc-file-info" onClick={() => downloadFile(file)}>
                         <FileText size={16} className="nc-file-icon" />
                         <span className="nc-file-name">{file.name}</span>
-                        {file.data.startsWith('http') && !file.data.includes('firebasestorage') && (
+                        {file.data.startsWith('http') && (
                            <span title="Внешняя ссылка"><Link2 size={12} className="nc-external-icon" /></span>
                         )}
                         <Download size={14} className="nc-download-hint" />
@@ -492,21 +409,12 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
                 <div className="nc-upload-actions">
                   <button 
                     className="nc-upload-pdf-btn" 
-                    onClick={handleFileUpload}
-                    disabled={saving}
-                  >
-                     {saving ? <div className="spinner-small"></div> : <PlusCircle size={16} />}
-                     <span>{saving ? 'Загрузка...' : t.uploadPdfBtn}</span>
-                  </button>
-                  <button 
-                    className="nc-upload-pdf-btn secondary" 
                     onClick={handleAddExternalLink}
                     disabled={saving}
                   >
                      <Link2 size={16} />
-                     <span>Добавить ссылку</span>
+                     <span>Добавить ссылку на PDF</span>
                   </button>
-                  <p className="nc-upload-warning">{t.uploadWarning}</p>
                 </div>
               )}
             </div>
@@ -541,13 +449,13 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
 
         {isAdmin && editMode && (
           <div className="nc-footer">
-            <button className="nc-save-btn" onClick={handleSave} disabled={saving || activeUploads > 0}>
-              {saving || activeUploads > 0 ? (
+            <button className="nc-save-btn" onClick={handleSave} disabled={saving}>
+              {saving ? (
                 <div className="spinner-dots"><span></span><span></span><span></span></div>
               ) : (
                 <Save size={14} />
               )}
-              <span>{saving || activeUploads > 0 ? t.saving : t.saveChanges}</span>
+              <span>{saving ? t.saving : t.saveChanges}</span>
             </button>
           </div>
         )}

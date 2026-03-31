@@ -131,7 +131,6 @@ export const translations = {
     executing: 'Выполнение...',
     ready: 'Готов к работе',
     pyPlaceholder: '# Напишите свой код на Python здесь\nprint("Привет, AcademicNT!")',
-    uploadWarning: 'Прямая загрузка PDF может занять время. Для мгновенного добавления используйте внешнюю ссылку.',
   },
   en: {
     // Top Bar
@@ -263,7 +262,6 @@ export const translations = {
     executing: 'Executing...',
     ready: 'Ready',
     pyPlaceholder: '# Write your Python code here\nprint("Hello, AcademicNT!")',
-    uploadWarning: 'Direct PDF upload may take some time. For instant addition, use an external link.',
   },
   zh: {
     // Top Bar
@@ -395,6 +393,5 @@ export const translations = {
     // Calendar
     march26: '2026年3月',
     mo: '一', tu: '二', we: '三', th: '四', fr: '五', sa: '六', su: '日',
-    uploadWarning: '直接 PDF 上传可能需要一些时间。 如需即时添加，请使用外部链接。',
   }
 };
