@@ -5,6 +5,7 @@ import EducationView from '../components/EducationView';
 import CourseDetailsView from '../components/CourseDetailsView';
 import TopBarBadges from '../components/TopBarBadges';
 import PythonIDE, { PythonLogo } from '../components/PythonIDE';
+import WelcomeScreen from '../components/WelcomeScreen';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Menu, X } from 'lucide-react';
 import './DashboardPage.css';
@@ -30,6 +31,7 @@ export default function DashboardPage() {
 
   return (
     <div className={`dashboard ${isSidebarOpen ? 'sidebar-open' : ''}`}>
+      <WelcomeScreen />
       {/* Header */}
       <header className="dashboard-header">
         <div className="header-left">
@@ -49,8 +51,8 @@ export default function DashboardPage() {
           >
             <span className="logo-a">D</span>
             <div className="logo-right-part">
-              <span className="logo-cademic" style={{color: '#333'}}>iscret</span>
-              <span className="logo-nt" style={{color: '#d03036'}}>a</span>
+              <span className="logo-cademic">iscret</span>
+              <span className="logo-nt">a</span>
             </div>
           </div>
           <span className="header-title">{t.learningSystem}</span>
