@@ -244,7 +244,7 @@ plt.close('all')
         const url = URL.createObjectURL(blob);
         const win = window.open(url, '_blank');
         if (!win) {
-          pushLogToConsole(targetConsoleId, "[!] Warning: Popup blocked. Please allow popups to see graphs in a new tab.");
+          pushLogToConsole(targetConsoleId, "[!] Внимание: Всплывающее окно заблокировано браузером. Пожалуйста, разрешите всплывающие окна на этом сайте для просмотра графиков.");
         }
       }
 
