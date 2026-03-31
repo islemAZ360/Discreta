@@ -3,7 +3,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../firebase';
-import { X, Play, Trash2, Loader2, Plus, Terminal } from 'lucide-react';
+import { X, Play, Trash2, Loader2, Plus, Terminal, Copy, Check } from 'lucide-react';
 import './PythonIDE.css';
 
 interface PythonIDEProps {
@@ -35,6 +35,7 @@ export default function PythonIDE({ onClose }: PythonIDEProps) {
   ]);
   const [activeTab, setActiveTab] = useState<string>('code'); // 'code' or console id
   const [terminalInput, setTerminalInput] = useState<string>('');
+  const [copiedConsole, setCopiedConsole] = useState<string | null>(null);
   
   const [isReady, setIsReady] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -235,12 +236,16 @@ plt.close('all')
       
     } catch (err: any) {
       const errorMsg = err.message;
-      
       // Auto-Pilot: Detect Missing Module ONLY for main runs
-      const match = !isTerminalCommand ? errorMsg.match(/ModuleNotFoundError: No module named '([^']+)'/) : null;
+      let missingPkg = null;
+      if (!isTerminalCommand) {
+        const match1 = errorMsg.match(/ModuleNotFoundError: No module named '([^']+)'/);
+        const match2 = errorMsg.match(/The module '([^']+)' is included in the Pyodide distribution/);
+        if (match1 && match1[1]) missingPkg = match1[1];
+        else if (match2 && match2[1]) missingPkg = match2[1];
+      }
       
-      if (match && match[1]) {
-        const missingPkg = match[1];
+      if (missingPkg) {
         
         if (installedPackagesRef.current.has(missingPkg)) {
           pushLogToConsole(targetConsoleId, `[Система] Неустранимая ошибка при загрузке библиотеки '${missingPkg}'.`);
@@ -335,6 +340,17 @@ await micropip.install('${missingPkg}')
     }
   };
 
+  const copyCurrentConsole = () => {
+    if (activeTab === 'code') return;
+    const currentConsole = consoles.find(c => c.id === activeTab);
+    if (currentConsole) {
+      navigator.clipboard.writeText(currentConsole.logs.join('\\n')).then(() => {
+        setCopiedConsole(activeTab);
+        setTimeout(() => setCopiedConsole(null), 2000);
+      });
+    }
+  };
+
   return (
     <div className="py-overlay">
       <div className="py-modal" onClick={e => e.stopPropagation()}>
@@ -410,10 +426,16 @@ await micropip.install('${missingPkg}')
             <div className="py-console-area">
               <div className="py-console-header">
                 <span>Результат выполнения ({consoles.find(c => c.id === activeTab)?.name})</span>
-                <button className="py-clear-btn cd-back-btn" onClick={clearCurrentConsole}>
-                  <Trash2 size={12} style={{marginRight: '6px'}} />
-                  Очистить
-                </button>
+                <div style={{display: 'flex', gap: '8px'}}>
+                  <button className="py-clear-btn cd-back-btn" onClick={copyCurrentConsole} title="Копировать вывод">
+                    {copiedConsole === activeTab ? <Check size={12} style={{marginRight: '6px'}} /> : <Copy size={12} style={{marginRight: '6px'}} />}
+                    {copiedConsole === activeTab ? 'Скопировано!' : 'Копировать'}
+                  </button>
+                  <button className="py-clear-btn cd-back-btn" onClick={clearCurrentConsole}>
+                    <Trash2 size={12} style={{marginRight: '6px'}} />
+                    Очистить
+                  </button>
+                </div>
               </div>
               <div className="py-console">
                 {consoles.find(c => c.id === activeTab)?.logs.map((line, i) => (
