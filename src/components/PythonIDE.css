@@ -14,8 +14,8 @@
 .py-modal {
   background: #ffffff;
   width: 95%;
-  max-width: 1000px;
-  height: 85vh;
+  max-width: 1100px;
+  height: 90vh;
   border: 1px solid #1a5598;
   border-radius: 6px;
   display: flex;
@@ -40,25 +40,104 @@
   font-weight: bold;
 }
 
-.py-container {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
-.py-editor-side {
-  flex: 1.5;
+.py-toolbar {
+  padding: 8px 16px 0 16px;
+  background: #ffffff;
   display: flex;
   flex-direction: column;
-  border-right: 2px solid #eaedf1;
-  position: relative;
-  background: #272822; /* Matches Prism Okaidia */
+  gap: 12px;
 }
 
+.py-run-btn {
+  background: #2b5b84; /* Python Blue */
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: bold;
+  width: max-content;
+}
+
+.py-run-btn:hover {
+  background: #3672a4;
+}
+
+.py-run-btn:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+}
+
+.py-status {
+  font-size: 12px;
+  color: #666;
+}
+
+/* Tabs Navigation - AcademicNT Style */
+.py-tabs {
+  margin-left: 2px;
+  margin-bottom: -1px; /* Overlaps with container border */
+  display: flex;
+  align-items: flex-end;
+  overflow-x: auto;
+}
+
+.py-console-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.py-tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  padding: 2px;
+  color: #888;
+}
+
+.py-tab-close:hover {
+  background: #f48771;
+  color: white;
+}
+
+.py-add-tab {
+  padding: 6px 15px !important;
+  color: #3f7b9e !important;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+}
+
+.py-add-tab:hover {
+  background: #f0f7fb !important;
+}
+
+.py-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  background: #ffffff;
+  border-radius: 6px;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  margin: 0 16px 16px 16px;
+}
+
+/* Editor Full Width */
 .py-editor-wrapper {
   flex: 1;
+  width: 100%;
   position: relative;
   overflow: auto;
+  background: #272822; /* Prism Okaidia */
 }
 
 .py-editor, .py-highlight-layer {
@@ -66,12 +145,12 @@
   top: 0;
   left: 0;
   width: 100%;
-  height: 100%;
+  min-height: 100%;
   padding: 16px;
   margin: 0;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 15px;
+  line-height: 1.6;
   white-space: pre;
   word-wrap: normal;
   overflow: hidden;
@@ -95,100 +174,93 @@
   background: transparent !important;
 }
 
-/* Prism Overrides to match our editor exactly */
 .py-highlight-layer code {
   font-family: inherit !important;
   padding: 0 !important;
   background: none !important;
 }
 
-.py-toolbar {
-  padding: 8px 16px;
-  background: #ffffff;
-  border-bottom: 1px solid #f0f0f0;
+/* Console Area */
+.py-console-area {
+  flex: 1;
   display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.py-run-btn {
-  background: #2b5b84; /* Python Blue */
-  color: white;
-  border: none;
-  padding: 6px 16px;
-  border-radius: 4px;
-  font-size: 13px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: bold;
-}
-
-.py-run-btn:hover {
-  background: #3672a4;
-}
-
-.py-run-btn:disabled {
-  background: #cccccc;
-  cursor: not-allowed;
-}
-
-.py-status {
-  font-size: 12px;
-  color: #666;
+  flex-direction: column;
+  background: #1e1e1e;
+  overflow: hidden;
 }
 
 .py-console-header {
   padding: 8px 16px;
-  background: #252526;
-  border-bottom: 1px solid #333;
-  color: #ccc;
-  font-size: 12px;
+  background: #2d2d30;
+  color: #cccccc;
+  font-size: 13px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border-bottom: 1px solid #3e3e42;
 }
 
 .py-clear-btn {
-  background: none;
-  border: 1px solid #444;
-  color: #999;
-  font-size: 11px;
-  padding: 2px 8px;
-  cursor: pointer;
-  border-radius: 2px;
+  background: transparent;
+  border: 1px solid #555;
+  color: #ddd;
+  padding: 2px 10px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
 }
 
 .py-clear-btn:hover {
+  background: #444;
   color: #fff;
-  border-color: #666;
 }
 
 .py-console {
   flex: 1;
   padding: 16px;
-  margin: 0;
   overflow-y: auto;
   color: #dcdcdc;
   font-family: 'Consolas', monospace;
-  font-size: 13px;
+  font-size: 14px;
   white-space: pre-wrap;
   word-break: break-all;
 }
 
-.py-console .output-line {
-  margin-bottom: 2px;
+.py-console .output-line { margin-bottom: 2px; }
+.py-console .error-line { color: #f48771; }
+.py-console .system-line { color: #5dade2; font-style: italic; margin-bottom: 4px; }
+
+/* REPL Terminal Input */
+.py-terminal-input-wrapper {
+  display: flex;
+  align-items: center;
+  background: #252526;
+  border-top: 1px solid #3e3e42;
+  padding: 8px;
 }
 
-.py-console .error-line {
-  color: #f48771;
+.py-terminal-icon {
+  color: #5dade2;
+  margin-right: 8px;
+  margin-left: 8px;
 }
 
-.py-console .error-line {
-  color: #f48771;
+.py-terminal-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-family: 'Consolas', monospace;
+  font-size: 14px;
+  outline: none;
 }
 
+.py-terminal-input::placeholder {
+  color: #666;
+  font-style: italic;
+}
+
+/* Utilities */
 .py-close-btn {
   background: none;
   border: none;
@@ -197,7 +269,6 @@
   font-size: 20px;
 }
 
-/* Python Icon Style for Header */
 .python-trigger-icon {
   cursor: pointer;
   width: 20px;
@@ -213,7 +284,6 @@
   transform: scale(1.1);
 }
 
-/* --- Mobile Responsiveness --- */
 @media (max-width: 600px) {
   .py-modal {
     width: 100%;
@@ -222,45 +292,7 @@
     border: none;
     border-radius: 0;
   }
-
   .py-container {
-    flex-direction: column;
+    margin: 0 4px 4px 4px;
   }
-
-  .py-editor-side {
-    flex: none;
-    height: 60%;
-    border-right: none;
-    border-bottom: 2px solid #eaedf1;
-  }
-
-  .py-console-side {
-    flex: none;
-    height: 40%;
-  }
-
-  .py-editor {
-    padding: 12px;
-    font-size: 13px;
-  }
-
-  .py-toolbar {
-    padding: 8px 12px;
-    gap: 8px;
-  }
-
-  .py-run-btn {
-    padding: 8px 16px;
-    font-size: 14px;
-  }
-
-  .py-status {
-    font-size: 11px;
-  }
-}
-
-.system-line {
-  color: #5dade2;
-  font-style: italic;
-  margin-bottom: 4px;
 }

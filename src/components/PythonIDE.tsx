@@ -3,11 +3,17 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../firebase';
-import { X, Play, Trash2, Loader2 } from 'lucide-react';
+import { X, Play, Trash2, Loader2, Plus, Terminal } from 'lucide-react';
 import './PythonIDE.css';
 
 interface PythonIDEProps {
   onClose: () => void;
+}
+
+interface PythonConsole {
+  id: string;
+  name: string;
+  logs: string[];
 }
 
 declare global {
@@ -22,7 +28,14 @@ export default function PythonIDE({ onClose }: PythonIDEProps) {
   const { currentUser } = useAuth();
   
   const [code, setCode] = useState(t.pyPlaceholder);
-  const [output, setOutput] = useState<string[]>([]);
+  
+  // Single Editor, Multiple Consoles
+  const [consoles, setConsoles] = useState<PythonConsole[]>([
+    { id: '1', name: 'Консоль 1', logs: [] }
+  ]);
+  const [activeTab, setActiveTab] = useState<string>('code'); // 'code' or console id
+  const [terminalInput, setTerminalInput] = useState<string>('');
+  
   const [isReady, setIsReady] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [status, setStatus] = useState(t.ready);
@@ -31,9 +44,15 @@ export default function PythonIDE({ onClose }: PythonIDEProps) {
   const consoleEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLPreElement>(null);
-
-  // Store user's auto-installed packages in memory to avoid redundant calls
   const installedPackagesRef = useRef<Set<string>>(new Set());
+  const consoleCounterRef = useRef<number>(2);
+
+  // Auto-scroll the active console
+  useEffect(() => {
+    if (activeTab !== 'code') {
+      consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [consoles, activeTab]);
 
   useEffect(() => {
     async function initPyodide() {
@@ -45,7 +64,6 @@ export default function PythonIDE({ onClose }: PythonIDEProps) {
           });
           pyodideRef.current = py;
 
-          // Background Pre-flight: Fetch previously saved packages 
           if (currentUser) {
             setStatus("Loading saved libraries...");
             try {
@@ -72,21 +90,17 @@ await micropip.install([${pkgs.map((p:string) => `'${p}'`).join(',')}])
         setStatus(t.ready);
       } catch (err) {
         console.error("Failed to load Pyodide:", err);
-        setOutput(prev => [...prev, `Error: Failed to load Python engine: ${err}`]);
+        pushLogToConsole('1', `Error: Failed to load Python engine: ${err}`);
       }
     }
     initPyodide();
   }, [t.ready, currentUser]);
 
   useEffect(() => {
-    consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [output]);
-
-  useEffect(() => {
-    if (window.Prism && highlightRef.current) {
+    if (activeTab === 'code' && window.Prism && highlightRef.current) {
       window.Prism.highlightElement(highlightRef.current);
     }
-  }, [code]);
+  }, [code, activeTab]);
 
   const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
     if (highlightRef.current) {
@@ -95,22 +109,59 @@ await micropip.install([${pkgs.map((p:string) => `'${p}'`).join(',')}])
     }
   };
 
-  const executeCodeContext = async (userCode: string, isAutoRetry = false): Promise<void> => {
+  const pushLogToConsole = (consoleId: string, log: string) => {
+    setConsoles(prev => prev.map(c => 
+      c.id === consoleId ? { ...c, logs: [...c.logs, log] } : c
+    ));
+  };
+
+  const addConsole = () => {
+    const newId = Date.now().toString();
+    const newName = `Консоль ${consoleCounterRef.current++}`;
+    setConsoles(prev => [...prev, { id: newId, name: newName, logs: [] }]);
+    setActiveTab(newId);
+  };
+
+  const deleteConsole = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConsoles(prev => {
+      const filtered = prev.filter(c => c.id !== id);
+      if (filtered.length === 0) {
+        // Always keep at least one output tab to avoid logic breaks
+        const newId = Date.now().toString();
+        const rescueConsole = { id: newId, name: `Консоль ${consoleCounterRef.current++}`, logs: [] };
+        if (activeTab === id) setActiveTab('code');
+        return [rescueConsole];
+      }
+      if (activeTab === id) {
+        setActiveTab('code');
+      }
+      return filtered;
+    });
+  };
+
+  const executeCodeContext = async (userCode: string, targetConsoleId: string, isAutoRetry = false, isTerminalCommand = false): Promise<void> => {
     if (!pyodideRef.current) return;
     
-    if (!isAutoRetry) {
-      setIsExecuting(true);
+    if (!isAutoRetry && !isTerminalCommand) {
+      // Clear target console if it's a full run
+      setConsoles(prev => prev.map(c => c.id === targetConsoleId ? { ...c, logs: [] } : c));
     }
     
-    const logs: string[] = [];
-    pyodideRef.current.setStdout({ batched: (str: string) => logs.push(str) });
-    pyodideRef.current.setStderr({ batched: (str: string) => logs.push(`Error: ${str}`) });
+    setIsExecuting(true);
+    
+    // Redirect Streams
+    pyodideRef.current.setStdout({ batched: (str: string) => pushLogToConsole(targetConsoleId, str) });
+    pyodideRef.current.setStderr({ batched: (str: string) => pushLogToConsole(targetConsoleId, `Error: ${str}`) });
 
     try {
-      if (!isAutoRetry) setStatus("Loading packages...");
-      await pyodideRef.current.loadPackagesFromImports(userCode);
+      if (!isAutoRetry && !isTerminalCommand) setStatus("Loading packages...");
       
-      if (!isAutoRetry) setStatus(t.executing);
+      if (!isTerminalCommand) {
+        await pyodideRef.current.loadPackagesFromImports(userCode);
+      }
+      
+      setStatus(t.executing);
 
       const commonMocks = `
 import js
@@ -147,7 +198,7 @@ except ImportError:
     pass
       `;
 
-      if (userCode.includes('matplotlib') || userCode.includes('plt.')) {
+      if (!isTerminalCommand && (userCode.includes('matplotlib') || userCode.includes('plt.'))) {
         await pyodideRef.current.runPythonAsync(`
 import matplotlib
 matplotlib.use("Agg") 
@@ -156,61 +207,61 @@ plt.show = lambda *args, **kwargs: None
 plt.clf()
 plt.close('all')
 ` + commonMocks);
-      } else {
+      } else if (!isTerminalCommand) {
         await pyodideRef.current.runPythonAsync(commonMocks);
       }
 
-      await pyodideRef.current.runPythonAsync(userCode);
+      // Execute exactly what was requested
+      const result = await pyodideRef.current.runPythonAsync(userCode);
       
-      if (userCode.includes('plt.show()')) {
+      // If it's a terminal command and returns a value, print it like a REPL
+      if (isTerminalCommand && result !== undefined) {
+         pushLogToConsole(targetConsoleId, String(result));
+      }
+      
+      if (!isTerminalCommand && userCode.includes('plt.show()')) {
         await pyodideRef.current.runPythonAsync("plt.savefig('/tmp/plot.png', bbox_inches='tight', dpi=100)");
         const data = pyodideRef.current.FS.readFile('/tmp/plot.png');
         const blob = new Blob([data.buffer], { type: 'image/png' });
         const url = URL.createObjectURL(blob);
         const win = window.open(url, '_blank');
         if (!win) {
-          setOutput(prev => [...prev, "[!] Warning: Popup blocked. Please allow popups to see graphs in a new tab."]);
+          pushLogToConsole(targetConsoleId, "[!] Warning: Popup blocked. Please allow popups to see graphs in a new tab.");
         }
       }
 
-      setOutput(prev => [...prev, ...logs]);
       setIsExecuting(false);
       setStatus(t.ready);
       
     } catch (err: any) {
       const errorMsg = err.message;
       
-      // Auto-Pilot: Detect Missing Module
-      const match = errorMsg.match(/ModuleNotFoundError: No module named '([^']+)'/);
+      // Auto-Pilot: Detect Missing Module ONLY for main runs
+      const match = !isTerminalCommand ? errorMsg.match(/ModuleNotFoundError: No module named '([^']+)'/) : null;
       
       if (match && match[1]) {
         const missingPkg = match[1];
         
-        // Prevent infinite loops if the package simply fails to install completely
         if (installedPackagesRef.current.has(missingPkg)) {
-          setOutput(prev => [...prev, ...logs, `[System] Unresolvable Error trying to load library '${missingPkg}'.`]);
+          pushLogToConsole(targetConsoleId, `[System] Unresolvable Error trying to load library '${missingPkg}'.`);
           setIsExecuting(false);
           setStatus(t.ready);
           return;
         }
 
         installedPackagesRef.current.add(missingPkg);
-        
-        // Notify User
-        setOutput(prev => [...prev, `[System] Missing library '${missingPkg}' detected. Auto-installing...`]);
+        pushLogToConsole(targetConsoleId, `[System] Missing library '${missingPkg}' detected. Auto-installing...`);
         setStatus(`Installing ${missingPkg}...`);
         
         try {
-          // Install via micropip
           await pyodideRef.current.loadPackage("micropip");
           await pyodideRef.current.runPythonAsync(`
 import micropip
 await micropip.install('${missingPkg}')
           `);
           
-          setOutput(prev => [...prev, `[System] Successfully installed '${missingPkg}'. Re-running code...`]);
+          pushLogToConsole(targetConsoleId, `[System] Successfully installed '${missingPkg}'. Re-running code...`);
           
-          // Save to Firebase for next time
           if (currentUser) {
             try {
               const userRef = doc(db, 'users', currentUser.uid);
@@ -222,57 +273,111 @@ await micropip.install('${missingPkg}')
             }
           }
           
-          // Retry automatically
-          await executeCodeContext(userCode, true);
-          return; // Exit current catch to let the retry finish
+          await executeCodeContext(userCode, targetConsoleId, true);
+          return; 
           
         } catch (installErr: any) {
-          setOutput(prev => [...prev, ...logs, `[System] Failed to auto-install '${missingPkg}': ${installErr.message}`]);
+          const errMsg = installErr.message || "";
+          if (errMsg.includes("Can't find a pure Python 3 wheel")) {
+             pushLogToConsole(targetConsoleId, `[System] ⛔ عذراً! المكتبة '${missingPkg}' مبرمجة جزئياً بلغة (C/C++) ولا تملك نسخة متوافقة مع محرك المتصفح (WebAssembly) حالياً.`);
+          } else {
+             pushLogToConsole(targetConsoleId, `[System] ⛔ فشل التثبيت التلقائي '${missingPkg}': ${errMsg}`);
+          }
         }
       } else {
-        // Standard non-module errors
-        setOutput(prev => [...prev, ...logs, `[Python Error] ${errorMsg}`]);
+        pushLogToConsole(targetConsoleId, `[Python Error] ${errorMsg}`);
       }
       
-      // Cleanup on failure
       setIsExecuting(false);
       setStatus(t.ready);
     }
   };
 
-  const runCode = () => {
+  const runMainCode = () => {
     if (isExecuting || !isReady) return;
-    executeCodeContext(code, false);
+    
+    // Determine which console to send output to
+    let targetId = activeTab;
+    if (activeTab === 'code') {
+       // Send to the last created console or the first one
+       targetId = consoles[consoles.length - 1].id;
+    }
+    
+    // Switch view to see the output running
+    setActiveTab(targetId);
+    executeCodeContext(code, targetId, false, false);
   };
 
-  const clearConsole = () => setOutput([]);
+  const handleTerminalCommand = (e: React.KeyboardEvent<HTMLInputElement>, consoleId: string) => {
+    if (e.key === 'Enter' && terminalInput.trim() !== '') {
+      if (isExecuting || !isReady) return;
+      const cmd = terminalInput;
+      setTerminalInput('');
+      pushLogToConsole(consoleId, `>>> ${cmd}`);
+      executeCodeContext(cmd, consoleId, false, true);
+    }
+  };
+
+  const clearCurrentConsole = () => {
+    if (activeTab !== 'code') {
+       setConsoles(prev => prev.map(c => c.id === activeTab ? { ...c, logs: [] } : c));
+    }
+  };
 
   return (
     <div className="py-overlay" onClick={onClose}>
       <div className="py-modal" onClick={e => e.stopPropagation()}>
         <div className="py-header">
           <h2>{t.pythonIdeTitle}</h2>
-          <button className="py-close-btn" onClick={onClose}>
-            <X size={20} />
-          </button>
+          <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+            <span className="py-status">
+              {!isReady ? "Loading Python engine..." : status}
+            </span>
+            <button className="py-close-btn" onClick={onClose}>
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         <div className="py-toolbar">
           <button 
             className="py-run-btn" 
-            onClick={runCode} 
+            onClick={runMainCode} 
             disabled={!isReady || isExecuting}
           >
             {isExecuting ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
             {t.runCode}
           </button>
-          <span className="py-status">
-            {!isReady ? "Loading Python engine..." : status}
-          </span>
+          
+          {/* AcademicNT Styled Tabs */}
+          <div className="cd-tabs py-tabs">
+            <div 
+              className={`cd-tab ${activeTab === 'code' ? 'active' : ''}`} 
+              onClick={() => setActiveTab('code')}
+            >
+               📝 Код
+            </div>
+            {consoles.map(c => (
+              <div 
+                key={c.id} 
+                className={`cd-tab py-console-tab ${activeTab === c.id ? 'active' : ''}`} 
+                onClick={() => setActiveTab(c.id)}
+              >
+                💻 {c.name}
+                <span className="py-tab-close" onClick={(e) => deleteConsole(c.id, e)}>
+                  <X size={12}/>
+                </span>
+              </div>
+            ))}
+            <div className="cd-tab py-add-tab" onClick={addConsole} title="Новая консоль">
+              <Plus size={14} />
+            </div>
+          </div>
         </div>
 
-        <div className="py-container">
-          <div className="py-editor-side">
+        {/* Dynamic Content Area */}
+        <div className="cd-box py-container">
+          {activeTab === 'code' ? (
             <div className="py-editor-wrapper">
               <pre className="py-highlight-layer" aria-hidden="true">
                 <code ref={highlightRef} className="language-python">
@@ -287,26 +392,42 @@ await micropip.install('${missingPkg}')
                 onScroll={handleScroll}
                 spellCheck={false}
                 autoFocus
+                placeholder="# Пишите код здесь..."
               />
             </div>
-          </div>
-          <div className="py-console-side">
-            <div className="py-console-header">
-              <span>{t.consoleTitle}</span>
-              <button className="py-clear-btn" onClick={clearConsole}>
-                <Trash2 size={12} style={{marginRight: '4px'}} />
-                {t.clearConsole}
-              </button>
+          ) : (
+            <div className="py-console-area">
+              <div className="py-console-header">
+                <span>Результат выполнения ({consoles.find(c => c.id === activeTab)?.name})</span>
+                <button className="py-clear-btn cd-back-btn" onClick={clearCurrentConsole}>
+                  <Trash2 size={12} style={{marginRight: '6px'}} />
+                  Очистить
+                </button>
+              </div>
+              <div className="py-console">
+                {consoles.find(c => c.id === activeTab)?.logs.map((line, i) => (
+                  <div key={i} className={line.includes("Error") || line.includes("Failed") ? "error-line" : line.includes("[System]") ? "system-line" : "output-line"}>
+                    {line}
+                  </div>
+                ))}
+                <div ref={consoleEndRef} />
+              </div>
+              
+              {/* Terminal Command Input */}
+              <div className="py-terminal-input-wrapper">
+                <Terminal size={14} className="py-terminal-icon" />
+                <input 
+                  type="text" 
+                  className="py-terminal-input"
+                  placeholder="Ввести терминальную команду (REPL)... Нажмите Enter"
+                  value={terminalInput}
+                  onChange={(e) => setTerminalInput(e.target.value)}
+                  onKeyDown={(e) => handleTerminalCommand(e, activeTab)}
+                  disabled={isExecuting || !isReady}
+                />
+              </div>
             </div>
-            <div className="py-console">
-              {output.map((line, i) => (
-                <div key={i} className={line.includes("Error") || line.includes("Failed") ? "error-line" : line.includes("[System]") ? "system-line" : "output-line"}>
-                  {line}
-                </div>
-              ))}
-              <div ref={consoleEndRef} />
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
@@ -316,7 +437,7 @@ await micropip.install('${missingPkg}')
 export const PythonLogo = ({ onClick }: { onClick: () => void }) => (
   <div className="python-trigger-icon" onClick={onClick} title="Python IDE">
     <svg viewBox="0 0 448 512" width="18" height="18">
-      <path fill="#3776AB" d="M220.8 142.9c17.1 0 31 13.9 31 31s-13.9 31-31 31-31-13.9-31-31 13.9-31 31-31zm129.2 36c-18.3 0-33.2 14.9-33.2 33.2s14.9 33.2 33.2 33.2 33.2-14.9 33.2-33.2-14.9-33.2-33.2-33.2zm-129.2-36c17.1 0 31 13.9 31 31s-13.9 31-31 31-31-13.9-31-31 13.9-31 31-31zm129.2 36c-18.3 0-33.2 14.9-33.2 33.2s14.9 33.2 33.2 33.2 33.2-14.9 33.2-33.2-14.9-33.2-33.2-33.2zM224 0c-123.7 0-224 100.3-224 224s100.3 224 224 224 224-100.3 224-224S347.7 0 224 0zm0 40c101.6 0 184 82.4 184 184s-82.4 184-184 184S40 325.6 40 224 122.4 40 224 40z"/>
+      <path fill="#3776AB" d="M220.8 142.9c17.1 0 31 13.9 31 31s-13.9 31-31 31-31-13.9-31-31 13.9-31 31-31zm129.2 36c-18.3 0-33.2 14.9-33.2 33.2s14.9 33.2 33.2 33.2 33.2-14.9 33.2-33.2-14.9-33.2-33.2-33.2zm-129.2-36c17.1 0 31 13.9 31 31s-13.9 31-31 31-31-13.9-31-31 13.9-31 31-31zm129.2 36c-18.3 0-33.2 14.9-33.2 33.2s14.9 33.2 33.2 33.2 33.2-14.9 33.2-33.2-14.9-33.2-33.2-33.2zM224 0c-123.7 0-224 100.3-224 224s100.3 224 224 224 224-100.3 224-224S347.7 0 224 0zm0 40c101.6 0 184 82.4 184 184s-82.4 184-184 184S40 325.6 40 224 122.4 40 224 40zm0 336c83.9 0 152-68.1 152-152s-68.1-152-152-152S72 140.1 72 224s68.1 152 152 152z"/>
       <path fill="#FFD43B" d="M160 304V208h128v96H160zm112-80h-96v64h96v-64z"/>
       <path fill="#3776AB" d="M224 40c101.6 0 184 82.4 184 184s-82.4 184-184 184S40 325.6 40 224 122.4 40 224 40zm0 336c83.9 0 152-68.1 152-152s-68.1-152-152-152S72 140.1 72 224s68.1 152 152 152z"/>
     </svg>
