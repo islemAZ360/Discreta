@@ -285,12 +285,11 @@ await micropip.install('${missingPkg}')
           
         } catch (installErr: any) {
           const errMsg = installErr.message || "";
-          if (errMsg.includes("Can't find a pure Python 3 wheel")) {
+          if (errMsg.includes("Can't find a pure Python 3 wheel") || errMsg.includes("is already installed")) {
              let cExtDep: string | null = null;
              try {
                 // Dynamically extract the specific C/C++ dependency causing the problem
-                // Example error: ValueError: Can't find a pure Python 3 wheel for 'scikit-learn>=1.4.2'.
-                const depMatch = errMsg.match(/for '([a-zA-Z0-9_\\-]+)/);
+                const depMatch = errMsg.match(/for '([a-zA-Z0-9_\\-]+)/) || errMsg.match(/Requested '([a-zA-Z0-9_\\-]+)/);
                 cExtDep = depMatch && depMatch[1] ? depMatch[1] : null;
 
                 if (cExtDep) {
