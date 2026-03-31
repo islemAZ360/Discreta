@@ -284,17 +284,26 @@ await micropip.install('${missingPkg}')
         } catch (installErr: any) {
           const errMsg = installErr.message || "";
           if (errMsg.includes("Can't find a pure Python 3 wheel")) {
+             let cExtDep: string | null = null;
              try {
-                pushLogToConsole(targetConsoleId, `[Система] ⚠️ Обнаружена зависимость C/C++. Попытка умной установки (Smart Fallback)...`);
-                // Load built-in heavy data science packages that usually trigger this error
-                await pyodideRef.current.loadPackage(['scikit-learn', 'pandas', 'numpy', 'scipy']);
-                // Force install the target package without strict dependency resolution tracking
-                await pyodideRef.current.runPythonAsync(`await micropip.install('${missingPkg}', deps=False)`);
-                pushLogToConsole(targetConsoleId, `[Система] Умная установка '${missingPkg}' завершена. Повторный запуск кода...`);
-                await executeCodeContext(userCode, targetConsoleId, true);
-                return;
+                // Dynamically extract the specific C/C++ dependency causing the problem
+                // Example error: ValueError: Can't find a pure Python 3 wheel for 'scikit-learn>=1.4.2'.
+                const depMatch = errMsg.match(/for '([a-zA-Z0-9_\\-]+)/);
+                cExtDep = depMatch && depMatch[1] ? depMatch[1] : null;
+
+                if (cExtDep) {
+                   pushLogToConsole(targetConsoleId, `[Система] ⚠️ Обнаружена зависимость C/C++ '${cExtDep}'. Попытка найти встроенную Wasm-версию...`);
+                   await pyodideRef.current.loadPackage(cExtDep);
+                   pushLogToConsole(targetConsoleId, `[Система] Wasm-версия '${cExtDep}' загружена. Возврат к принудительной установке '${missingPkg}'...`);
+                   await pyodideRef.current.runPythonAsync(`await micropip.install('${missingPkg}', deps=False)`);
+                   pushLogToConsole(targetConsoleId, `[Система] Принудительная установка '${missingPkg}' завершена. Повторный запуск кода...`);
+                   await executeCodeContext(userCode, targetConsoleId, true);
+                   return;
+                } else {
+                   pushLogToConsole(targetConsoleId, `[Система] ⛔ Умная установка не удалась: не удалось определить модуль C/C++ из сообщения об ошибке.`);
+                }
              } catch (forceErr: any) {
-                pushLogToConsole(targetConsoleId, `[Система] ⛔ Извините! Библиотека '${missingPkg}' полностью несовместима с WebAssembly: ${forceErr.message}`);
+                pushLogToConsole(targetConsoleId, `[Система] ⛔ Извините! Библиотека '${missingPkg}' (или ${cExtDep}) полностью несовместима с WebAssembly: ${forceErr.message}`);
              }
           } else {
              pushLogToConsole(targetConsoleId, `[Система] ⛔ Ошибка автоматической установки '${missingPkg}': ${errMsg}`);
