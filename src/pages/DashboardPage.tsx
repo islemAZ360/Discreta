@@ -211,9 +211,9 @@ export default function DashboardPage() {
         </main>
       </div>
 
-      {showPythonIDE && (
+      <div style={{ display: showPythonIDE ? 'block' : 'none' }}>
         <PythonIDE onClose={() => setShowPythonIDE(false)} />
-      )}
+      </div>
     </div>
   );
 }
