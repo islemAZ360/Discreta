@@ -210,11 +210,23 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
             <li key={node.id} className="cd-node-item">
               <div className="cd-node-content">
                 {isFolder ? (
-                  <span className="cd-node-wrapper" onClick={() => toggleSection(node.id)}>
-                    <span className="cd-topic-link">{actualTitle}</span>
-                    <span className="cd-bracket"> [</span>
-                    <span className="cd-toggle-icon">{isExpanded ? '−' : '+'}</span>
-                    <span className="cd-bracket">]</span>
+                  <span className="cd-node-wrapper">
+                    <span 
+                      className="cd-topic-link" 
+                      onClick={() => handleLeafClick(node.id, actualTitle)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {actualTitle}
+                    </span>
+                    <span 
+                      className="cd-toggle-area" 
+                      onClick={() => toggleSection(node.id)}
+                      style={{ cursor: 'pointer', marginLeft: '4px' }}
+                    >
+                      <span className="cd-bracket">[</span>
+                      <span className="cd-toggle-icon">{isExpanded ? '−' : '+'}</span>
+                      <span className="cd-bracket">]</span>
+                    </span>
                   </span>
                 ) : (
                   <span className="cd-node-wrapper" onClick={() => handleLeafClick(node.id, actualTitle)}>
@@ -222,11 +234,17 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
                       {actualTitle}
                     </span>
                     {showStaticPlus && (
-                      <>
+                      <span 
+                        className="cd-toggle-area"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSection(node.id);
+                        }}
+                      >
                         <span className="cd-bracket"> [</span>
                         <span className="cd-toggle-icon">+</span>
                         <span className="cd-bracket">]</span>
-                      </>
+                      </span>
                     )}
                   </span>
                 )}
