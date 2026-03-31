@@ -136,48 +136,64 @@
   flex: 1;
   width: 100%;
   position: relative;
-  overflow: auto;
+  overflow: auto; /* The single scrollbar for the IDE! */
   background: #272822; /* Prism Okaidia */
 }
 
+/* Force identical text metrics for perfect alignment */
+.py-editor, .py-highlight-layer, .py-highlight-layer code {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
+  font-size: 15px !important;
+  line-height: 1.6 !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+  tab-size: 4 !important;
+  white-space: pre !important;
+}
+
+/* Base structural properties */
 .py-editor, .py-highlight-layer {
+  padding: 16px !important;
+  margin: 0 !important;
+  border: none !important;
+  box-sizing: border-box !important;
+  word-wrap: normal !important;
+}
+
+.py-highlight-layer {
+  position: relative; /* Sets the scroll height natively */
+  z-index: 1;
+  pointer-events: none;
+  background: transparent !important;
+  min-height: 100%; /* Stretch to wrapper initially */
+}
+
+/* Hide Prism offsets */
+.py-highlight-layer code {
+  padding: 0 !important;
+  background: none !important;
+  display: block; /* ensure it fills space */
+}
+
+.py-editor {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
-  min-height: 100%;
-  padding: 16px;
-  margin: 0;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 15px;
-  line-height: 1.6;
-  white-space: pre;
-  word-wrap: normal;
-  overflow: hidden;
-  box-sizing: border-box;
-  tab-size: 4;
-}
-
-.py-editor {
+  height: 100%; 
+  overflow: hidden !important; /* Hidden because the wrapper handles scrolling */
   background: transparent !important;
-  color: transparent !important;
+  color: transparent !important; /* Hide native text */
   caret-color: #fff;
   z-index: 2;
-  border: none;
   outline: none;
   resize: none;
 }
 
-.py-highlight-layer {
-  z-index: 1;
-  pointer-events: none;
-  background: transparent !important;
-}
-
-.py-highlight-layer code {
-  font-family: inherit !important;
-  padding: 0 !important;
-  background: none !important;
+/* Hide colored weirdness when user highlights text */
+.py-editor::selection {
+  background: rgba(255, 255, 255, 0.2);
+  color: transparent !important;
 }
 
 /* Console Area */

@@ -325,7 +325,7 @@ await micropip.install('${missingPkg}')
   };
 
   return (
-    <div className="py-overlay" onClick={onClose}>
+    <div className="py-overlay">
       <div className="py-modal" onClick={e => e.stopPropagation()}>
         <div className="py-header">
           <h2>{t.pythonIdeTitle}</h2>
