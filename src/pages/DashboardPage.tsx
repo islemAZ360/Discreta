@@ -51,8 +51,8 @@ export default function DashboardPage() {
           >
             <span className="logo-a">D</span>
             <div className="logo-right-part">
-              <span className="logo-cademic">iscret</span>
-              <span className="logo-nt">a</span>
+              <span className="logo-cademic">iscre</span>
+              <span className="logo-nt">TA</span>
             </div>
           </div>
           <span className="header-title">{t.learningSystem}</span>
