@@ -156,6 +156,33 @@
   min-height: 150px;
 }
 
+/* --- TipTap Editor Core Typography --- */
+.nc-tiptap-wrapper .ProseMirror {
+  outline: none;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.nc-tiptap-wrapper .ProseMirror > *:first-child {
+  margin-top: 0;
+}
+
+.nc-tiptap-wrapper .ProseMirror p {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.nc-tiptap-wrapper .ProseMirror ul,
+.nc-tiptap-wrapper .ProseMirror ol {
+  padding-left: 24px; /* Fix for cut-off bullets and numbers */
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+.nc-tiptap-wrapper .ProseMirror li p {
+  margin-bottom: 4px; /* Tighter list items */
+}
+
 /* --- Attachments Section --- */
 .nc-attachments-container {
   padding: 8px 0;
