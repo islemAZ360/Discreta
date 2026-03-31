@@ -169,6 +169,12 @@ import js
 import sys
 import types
 import builtins
+import warnings
+
+# Игнорируем предупреждения от библиотек (DeprecationWarning от numpy/networkx)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 
 def input(prompt=""):
     res = js.prompt(prompt)
