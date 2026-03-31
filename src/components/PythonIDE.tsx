@@ -186,8 +186,10 @@ def create_mock_module(name, **kwargs):
     sys.modules[name] = m
     return m
 
-mp = create_mock_module("multiprocessing", Process=lambda *a, **k: None, Queue=lambda *a: None, Pool=lambda *a: None, Lock=lambda: None)
+mp_util = create_mock_module("multiprocessing.util", register_after_fork=lambda *a, **k: None, Finalize=lambda *a, **k: None)
+mp = create_mock_module("multiprocessing", Process=lambda *a, **k: None, Queue=lambda *a: None, Pool=lambda *a: None, Lock=lambda: None, util=mp_util)
 sys.modules["_multiprocessing"] = mp
+sys.modules["multiprocessing.util"] = mp_util
 create_mock_module("multiprocessing.dummy", Pool=lambda *a: None, Process=lambda *a: None)
 try:
     import concurrent.futures
