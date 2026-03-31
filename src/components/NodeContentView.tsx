@@ -510,6 +510,7 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
                      <Link2 size={16} />
                      <span>Добавить ссылку</span>
                   </button>
+                  <p className="nc-upload-warning">{t.uploadWarning}</p>
                 </div>
               )}
             </div>

@@ -538,6 +538,20 @@
   animation: slideDown 0.3s ease-out;
 }
 
+.nc-upload-warning {
+  width: 100%;
+  font-size: 11px;
+  color: #d97706;
+  background-color: #fffbeb;
+  border: 1px solid #fef3c7;
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin: 12px 0 0 0;
+  line-height: 1.4;
+  font-weight: normal;
+  font-style: italic;
+}
+
 @keyframes slideDown {
   from { transform: translateY(-100%); }
   to { transform: translateY(0); }
