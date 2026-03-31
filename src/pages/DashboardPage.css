@@ -478,7 +478,7 @@
   padding: 4px;
   margin-right: 8px;
   cursor: pointer;
-  display: flex;
+  display: none;
   align-items: center;
   color: #1a5598;
 }
@@ -491,6 +491,10 @@
 }
 
 @media (max-width: 768px) {
+  .mobile-menu-toggle {
+    display: flex;
+  }
+  
   .dashboard-header {
     flex-wrap: nowrap;
     justify-content: flex-start;
