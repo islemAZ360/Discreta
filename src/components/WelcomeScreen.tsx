@@ -11,7 +11,14 @@ export default function WelcomeScreen() {
   useEffect(() => {
     if (currentUser) {
       const hasSeen = localStorage.getItem(`welcomed_${currentUser.uid}`);
-      if (!hasSeen) {
+      
+      // Check if the account was created recently (within the last 24 hours)
+      // This prevents the tutorial from showing to old users who just logged in.
+      const creationTimeStr = currentUser.metadata.creationTime;
+      const creationTime = creationTimeStr ? new Date(creationTimeStr).getTime() : 0;
+      const isNewAccount = (Date.now() - creationTime) < (24 * 60 * 60 * 1000); // 24 hours
+
+      if (!hasSeen && isNewAccount) {
         setIsOpen(true);
       }
     }

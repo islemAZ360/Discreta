@@ -9,10 +9,10 @@ import { db, storage } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { 
-  X, Save, Copy, Check, Moon, 
+  X, Save, Copy, Check, Edit2, 
   Bold, Italic, List, ListOrdered, Image as ImageIcon, 
   Link as LinkIcon, Heading1, Heading2, Quote, Undo, Redo,
-  Sparkles, FileCode, FileText, Trash2, Download, PlusCircle // Added PlusCircle
+  Sparkles, FileCode, FileText, Trash2, Download, PlusCircle 
 } from 'lucide-react';
 import './NodeContentView.css';
 
@@ -144,6 +144,7 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
 
   useEffect(() => {
     const fetchContent = async () => {
+      setLoading(true);
       try {
         const docRef = doc(db, 'nodes_content', nodeId);
         const docSnap = await getDoc(docRef);
@@ -156,6 +157,21 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
           if (editor) {
             editor.commands.setContent(content);
           }
+          setEditMode(false); // Default to view mode for existing content
+        } else {
+          // RESET STATE for new/empty nodes
+          setInstructions('');
+          setPrompt('');
+          setAttachments([]);
+          if (editor) {
+            editor.commands.setContent('');
+          }
+          // AUTO-EDIT: If it's a new node and it's an Admin, enable edit mode immediately
+          if (isAdmin) {
+             setEditMode(true);
+          } else {
+             setEditMode(false);
+          }
         }
       } catch (error) {
         console.error("Error fetching content:", error);
@@ -164,7 +180,7 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
       }
     };
     fetchContent();
-  }, [nodeId, editor]);
+  }, [nodeId, editor, isAdmin]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -290,7 +306,7 @@ export default function NodeContentView({ nodeId, nodeTitle, onClose }: NodeCont
                 onClick={() => setEditMode(!editMode)}
                 title={t.editModeTooltip}
               >
-                <Moon size={18} />
+                <Edit2 size={18} />
               </button>
             )}
             <button className="nc-btn-close" onClick={onClose}>

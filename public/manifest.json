@@ -1,11 +1,11 @@
 {
-  "name": "AcademicNT",
-  "short_name": "AcademicNT",
+  "name": "Discreta",
+  "short_name": "Discreta",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#1a5598",
-  "description": "Система управления обучением - AcademicNT",
+  "description": "Платформа для изучения дискретной математики",
   "icons": [
     {
       "src": "/favicon.svg",
