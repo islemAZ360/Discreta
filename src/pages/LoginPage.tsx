@@ -45,7 +45,7 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <h1 className="login-title">{isRegistering ? 'Регистрация' : 'Вход в AcademicNT'}</h1>
+        <h1 className="login-title">{isRegistering ? 'Регистрация' : 'Вход в Discreta'}</h1>
         
         {error && <div className="login-error">{error}</div>}
 

@@ -43,14 +43,14 @@ export default function DashboardPage() {
           </button>
           <div 
             className="academic-logo" 
-            title="На главную" 
+            title="На главную в Discreta" 
             onClick={() => setCurrentView('home')}
             style={{ cursor: 'pointer' }}
           >
-            <span className="logo-a">A</span>
+            <span className="logo-a">D</span>
             <div className="logo-right-part">
-              <span className="logo-cademic">cademic</span>
-              <span className="logo-nt">NT</span>
+              <span className="logo-cademic" style={{color: '#333'}}>iscret</span>
+              <span className="logo-nt" style={{color: '#d03036'}}>a</span>
             </div>
           </div>
           <span className="header-title">{t.learningSystem}</span>
