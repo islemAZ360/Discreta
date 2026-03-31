@@ -258,3 +258,9 @@
     font-size: 11px;
   }
 }
+
+.system-line {
+  color: #5dade2;
+  font-style: italic;
+  margin-bottom: 4px;
+}

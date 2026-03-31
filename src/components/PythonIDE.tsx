@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
+import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { db } from '../firebase';
 import { X, Play, Trash2, Loader2 } from 'lucide-react';
 import './PythonIDE.css';
 
@@ -16,15 +19,21 @@ declare global {
 
 export default function PythonIDE({ onClose }: PythonIDEProps) {
   const { t } = useLanguage();
+  const { currentUser } = useAuth();
+  
   const [code, setCode] = useState(t.pyPlaceholder);
   const [output, setOutput] = useState<string[]>([]);
   const [isReady, setIsReady] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [status, setStatus] = useState(t.ready);
+  
   const pyodideRef = useRef<any>(null);
   const consoleEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLPreElement>(null);
+
+  // Store user's auto-installed packages in memory to avoid redundant calls
+  const installedPackagesRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     async function initPyodide() {
@@ -35,6 +44,29 @@ export default function PythonIDE({ onClose }: PythonIDEProps) {
             indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.1/full/"
           });
           pyodideRef.current = py;
+
+          // Background Pre-flight: Fetch previously saved packages 
+          if (currentUser) {
+            setStatus("Loading saved libraries...");
+            try {
+              const userDocRef = doc(db, 'users', currentUser.uid);
+              const userDocSnap = await getDoc(userDocRef);
+              if (userDocSnap.exists()) {
+                const userData = userDocSnap.data();
+                const pkgs = userData.pythonPackages || [];
+                if (pkgs.length > 0) {
+                  await py.loadPackage("micropip");
+                  await py.runPythonAsync(`
+import micropip
+await micropip.install([${pkgs.map((p:string) => `'${p}'`).join(',')}])
+                  `);
+                  pkgs.forEach((p:string) => installedPackagesRef.current.add(p));
+                }
+              }
+            } catch (fbErr) {
+              console.warn("Failed to preload user packages", fbErr);
+            }
+          }
         }
         setIsReady(true);
         setStatus(t.ready);
@@ -44,13 +76,12 @@ export default function PythonIDE({ onClose }: PythonIDEProps) {
       }
     }
     initPyodide();
-  }, [t.ready]);
+  }, [t.ready, currentUser]);
 
   useEffect(() => {
     consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [output]);
 
-  // Sync highlighting
   useEffect(() => {
     if (window.Prism && highlightRef.current) {
       window.Prism.highlightElement(highlightRef.current);
@@ -64,38 +95,29 @@ export default function PythonIDE({ onClose }: PythonIDEProps) {
     }
   };
 
-  const runCode = async () => {
-    if (!pyodideRef.current || isExecuting) return;
-
-    setIsExecuting(true);
+  const executeCodeContext = async (userCode: string, isAutoRetry = false): Promise<void> => {
+    if (!pyodideRef.current) return;
+    
+    if (!isAutoRetry) {
+      setIsExecuting(true);
+    }
+    
     const logs: string[] = [];
-    
-    // Redirect stdout to our logs array
-    pyodideRef.current.setStdout({
-      batched: (str: string) => logs.push(str)
-    });
-    
-    // Redirect stderr
-    pyodideRef.current.setStderr({
-      batched: (str: string) => logs.push(`Error: ${str}`)
-    });
+    pyodideRef.current.setStdout({ batched: (str: string) => logs.push(str) });
+    pyodideRef.current.setStderr({ batched: (str: string) => logs.push(`Error: ${str}`) });
 
     try {
-      setStatus("Loading packages...");
+      if (!isAutoRetry) setStatus("Loading packages...");
+      await pyodideRef.current.loadPackagesFromImports(userCode);
       
-      // Automatically load packages used in the code (matplotlib, numpy, etc.)
-      await pyodideRef.current.loadPackagesFromImports(code);
-      
-      setStatus(t.executing);
+      if (!isAutoRetry) setStatus(t.executing);
 
-      // Common Mocks (Available for every run)
       const commonMocks = `
 import js
 import sys
 import types
 import builtins
 
-# 1. Mock input()
 def input(prompt=""):
     res = js.prompt(prompt)
     return res if res is not None else ""
@@ -103,7 +125,6 @@ builtins.input = input
 import __main__
 __main__.input = input
 
-# 2. Mock multiprocessing as a full package
 def create_mock_module(name, **kwargs):
     m = types.ModuleType(name)
     for k, v in kwargs.items():
@@ -113,33 +134,9 @@ def create_mock_module(name, **kwargs):
     sys.modules[name] = m
     return m
 
-mp = create_mock_module("multiprocessing", 
-    Process=lambda *a, **k: None,
-    Queue=lambda *a: None,
-    Pool=lambda *a: None,
-    Lock=lambda: None,
-    RLock=lambda: None,
-    Event=lambda: None,
-    Condition=lambda: None,
-    Semaphore=lambda: None,
-    BoundedSemaphore=lambda: None,
-    cpu_count=lambda: 1,
-    current_process=lambda: types.SimpleNamespace(name="MainProcess")
-)
+mp = create_mock_module("multiprocessing", Process=lambda *a, **k: None, Queue=lambda *a: None, Pool=lambda *a: None, Lock=lambda: None)
 sys.modules["_multiprocessing"] = mp
-
-# Mock all commonly used submodules
-create_mock_module("multiprocessing.connection", Client=lambda *a: None, Listener=lambda *a: None)
-create_mock_module("multiprocessing.pool", Pool=lambda *a: None)
-create_mock_module("multiprocessing.queues", Queue=lambda *a: None)
-create_mock_module("multiprocessing.synchronize", Lock=lambda: None, RLock=lambda: None, Event=lambda: None, Condition=lambda: None, Semaphore=lambda: None, BoundedSemaphore=lambda: None)
-create_mock_module("multiprocessing.context", DefaultContext=lambda: None)
-create_mock_module("multiprocessing.spawn")
-create_mock_module("multiprocessing.process")
-create_mock_module("multiprocessing.util")
 create_mock_module("multiprocessing.dummy", Pool=lambda *a: None, Process=lambda *a: None)
-
-# 3. Mock concurrent.futures.ProcessPoolExecutor
 try:
     import concurrent.futures
     class MockProcessPoolExecutor(concurrent.futures.ThreadPoolExecutor):
@@ -148,10 +145,9 @@ try:
     concurrent.futures.ProcessPoolExecutor = MockProcessPoolExecutor
 except ImportError:
     pass
-`;
+      `;
 
-      // Force Matplotlib to use the 'Agg' backend if detected
-      if (code.includes('matplotlib') || code.includes('plt.')) {
+      if (userCode.includes('matplotlib') || userCode.includes('plt.')) {
         await pyodideRef.current.runPythonAsync(`
 import matplotlib
 matplotlib.use("Agg") 
@@ -164,10 +160,9 @@ plt.close('all')
         await pyodideRef.current.runPythonAsync(commonMocks);
       }
 
-      await pyodideRef.current.runPythonAsync(code);
+      await pyodideRef.current.runPythonAsync(userCode);
       
-      // If the code uses plt.show(), we save it to memory and open as a new tab
-      if (code.includes('plt.show()')) {
+      if (userCode.includes('plt.show()')) {
         await pyodideRef.current.runPythonAsync("plt.savefig('/tmp/plot.png', bbox_inches='tight', dpi=100)");
         const data = pyodideRef.current.FS.readFile('/tmp/plot.png');
         const blob = new Blob([data.buffer], { type: 'image/png' });
@@ -179,12 +174,75 @@ plt.close('all')
       }
 
       setOutput(prev => [...prev, ...logs]);
+      setIsExecuting(false);
+      setStatus(t.ready);
+      
     } catch (err: any) {
-      setOutput(prev => [...prev, ...logs, `[Python Error] ${err.message}`]);
-    } finally {
+      const errorMsg = err.message;
+      
+      // Auto-Pilot: Detect Missing Module
+      const match = errorMsg.match(/ModuleNotFoundError: No module named '([^']+)'/);
+      
+      if (match && match[1]) {
+        const missingPkg = match[1];
+        
+        // Prevent infinite loops if the package simply fails to install completely
+        if (installedPackagesRef.current.has(missingPkg)) {
+          setOutput(prev => [...prev, ...logs, `[System] Unresolvable Error trying to load library '${missingPkg}'.`]);
+          setIsExecuting(false);
+          setStatus(t.ready);
+          return;
+        }
+
+        installedPackagesRef.current.add(missingPkg);
+        
+        // Notify User
+        setOutput(prev => [...prev, `[System] Missing library '${missingPkg}' detected. Auto-installing...`]);
+        setStatus(`Installing ${missingPkg}...`);
+        
+        try {
+          // Install via micropip
+          await pyodideRef.current.loadPackage("micropip");
+          await pyodideRef.current.runPythonAsync(`
+import micropip
+await micropip.install('${missingPkg}')
+          `);
+          
+          setOutput(prev => [...prev, `[System] Successfully installed '${missingPkg}'. Re-running code...`]);
+          
+          // Save to Firebase for next time
+          if (currentUser) {
+            try {
+              const userRef = doc(db, 'users', currentUser.uid);
+              await updateDoc(userRef, {
+                pythonPackages: arrayUnion(missingPkg)
+              });
+            } catch (fbErr) {
+               console.warn("Could not save package permanently:", fbErr);
+            }
+          }
+          
+          // Retry automatically
+          await executeCodeContext(userCode, true);
+          return; // Exit current catch to let the retry finish
+          
+        } catch (installErr: any) {
+          setOutput(prev => [...prev, ...logs, `[System] Failed to auto-install '${missingPkg}': ${installErr.message}`]);
+        }
+      } else {
+        // Standard non-module errors
+        setOutput(prev => [...prev, ...logs, `[Python Error] ${errorMsg}`]);
+      }
+      
+      // Cleanup on failure
       setIsExecuting(false);
       setStatus(t.ready);
     }
+  };
+
+  const runCode = () => {
+    if (isExecuting || !isReady) return;
+    executeCodeContext(code, false);
   };
 
   const clearConsole = () => setOutput([]);
@@ -242,7 +300,7 @@ plt.close('all')
             </div>
             <div className="py-console">
               {output.map((line, i) => (
-                <div key={i} className={line.includes("Error") ? "error-line" : "output-line"}>
+                <div key={i} className={line.includes("Error") || line.includes("Failed") ? "error-line" : line.includes("[System]") ? "system-line" : "output-line"}>
                   {line}
                 </div>
               ))}
@@ -255,7 +313,6 @@ plt.close('all')
   );
 }
 
-// Simple Python Logo Component for use in Dashboard
 export const PythonLogo = ({ onClick }: { onClick: () => void }) => (
   <div className="python-trigger-icon" onClick={onClick} title="Python IDE">
     <svg viewBox="0 0 448 512" width="18" height="18">

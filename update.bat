@@ -1,14 +1,21 @@
 @echo off
-chcp 65001 > nul
 cd /d "%~dp0"
-echo --- جاري رفع التحديثات إلى GitHub ---
+
+echo --- Starting GitHub Update ---
+
+echo 1. Adding files...
 git add .
-set msg=Update %date% %time%
-git commit -m "%msg%"
+
+echo 2. Committing changes...
+git commit -m "Auto Update"
+
+echo 3. Pushing to GitHub...
 git push origin main
+
 if %errorlevel% neq 0 (
-    echo [ERROR] حدث خطأ أثناء الرفع. تأكد من اتصال الإنترنت أو إعدادات Git.
+    echo [ERROR] An error occurred! Please check your connection or Git setup.
 ) else (
-    echo [SUCCESS] تم الرفع بنجاح!
+    echo [SUCCESS] Upload completed successfully!
 )
+
 pause
