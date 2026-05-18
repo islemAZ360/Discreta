@@ -676,6 +676,10 @@
   background: #fafafb;
 }
 
+.bomba-modal-content.lock-scroll {
+  overflow-y: hidden !important;
+}
+
 /* Admin Panel inside Bomba */
 .bomba-admin-panel {
   background: #ffffff;

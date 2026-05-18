@@ -149,6 +149,7 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
   const [useCustomBombaTitle, setUseCustomBombaTitle] = useState(false);
   const [newBombaImageBase64, setNewBombaImageBase64] = useState('');
   const [bombaUploading, setBombaUploading] = useState(false);
+  const [isSelectActive, setIsSelectActive] = useState(false);
 
   useEffect(() => {
     if (!loading && nodes.length === 0) {
@@ -633,7 +634,7 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
               />
             </div>
 
-            <div className="bomba-modal-content">
+            <div className={`bomba-modal-content ${isSelectActive ? 'lock-scroll' : ''}`}>
               {/* Admin Panel inside Bomba */}
               {isAdmin && (
                 <div className="bomba-admin-panel">
@@ -669,6 +670,10 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
                           className="bomba-select"
                           value={newBombaTitle}
                           onChange={(e) => setNewBombaTitle(e.target.value)}
+                          onFocus={() => setIsSelectActive(true)}
+                          onBlur={() => setIsSelectActive(false)}
+                          onWheel={(e) => e.stopPropagation()}
+                          onTouchMove={(e) => e.stopPropagation()}
                         >
                           <option value="">-- Выберите тему из плана --</option>
                           {getAllTopicsList(nodes).map((topic, idx) => (
