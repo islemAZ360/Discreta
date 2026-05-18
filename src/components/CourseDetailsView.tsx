@@ -69,12 +69,7 @@ const sem2NodesStatic: CurriculumNode[] = [
           { id: 's2_1_2_2', title: 'Метод минимальной стоимости [+]' }
         ]
       },
-      {
-        id: 's2_1_3', title: 'Метод потенциалов', type: 'topic', children: [
-          { id: 's2_1_3_1', title: 'Задача (обучение)', type: 'link' },
-          { id: 's2_1_3_2', title: 'Задача (аттестация)', type: 'link' }
-        ]
-      }
+      { id: 's2_1_3', title: 'Метод потенциалов [+]' }
     ]
   },
   {
@@ -85,7 +80,8 @@ const sem2NodesStatic: CurriculumNode[] = [
       { id: 's2_2_4', title: 'Метод анализа свойств сети Петри на основе покрывающих деревьев [+]' },
       { id: 's2_2_5', title: 'Алгоритм последовательного распространения сигнала в свёрточной нейронной сети [+]' }
     ]
-  }
+  },
+  { id: 's2_3', title: 'Экзамен [+]' }
 ];
 
 // Helper functions for deep nested updates
