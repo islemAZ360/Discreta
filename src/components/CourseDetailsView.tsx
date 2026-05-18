@@ -5,7 +5,9 @@ import NodeContentView from './NodeContentView';
 import CurriculumAdminModal from './CurriculumAdminModal';
 import { useCurriculum, CurriculumNode, CurriculumNodeType } from '../hooks/useCurriculum';
 import './CourseDetailsView.css';
-import { Edit2, Plus, Trash2 } from 'lucide-react';
+import { Edit2, Plus, Trash2, Image as ImageIcon, Loader2, Sparkles, X } from 'lucide-react';
+import { collection, onSnapshot, query, where, addDoc, deleteDoc, doc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 interface CourseDetailsViewProps {
   courseId: 'sem1' | 'sem2';
@@ -136,11 +138,177 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
   const [modalTargetParentId, setModalTargetParentId] = useState<string | null>(null);
   const [nodeToEdit, setNodeToEdit] = useState<CurriculumNode | null>(null);
 
+  // Bomba Modal State
+  const [showBombaModal, setShowBombaModal] = useState(false);
+  const [customImages, setCustomImages] = useState<{ id: string; title: string; imageUrl: string }[]>([]);
+  const [bombaSearchQuery, setBombaSearchQuery] = useState('');
+  
+  // Admin Upload State inside Bomba
+  const [newBombaTitle, setNewBombaTitle] = useState('');
+  const [newBombaCustomTitle, setNewBombaCustomTitle] = useState('');
+  const [useCustomBombaTitle, setUseCustomBombaTitle] = useState(false);
+  const [newBombaImageBase64, setNewBombaImageBase64] = useState('');
+  const [bombaUploading, setBombaUploading] = useState(false);
+
   useEffect(() => {
     if (!loading && nodes.length === 0) {
       initDefaultCurriculum(isSem1 ? sem1NodesStatic : sem2NodesStatic);
     }
   }, [loading, nodes, isSem1, initDefaultCurriculum]);
+
+  useEffect(() => {
+    const q = query(collection(db, 'bomba_images'), where('courseId', '==', courseId));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const imgs: any[] = [];
+      snapshot.forEach((doc) => {
+        imgs.push({ id: doc.id, ...doc.data() });
+      });
+      setCustomImages(imgs);
+    }, (error) => {
+      console.error("Error loading bomba images:", error);
+    });
+    return () => unsubscribe();
+  }, [courseId]);
+
+  const findNodeByTitle = (nodesArray: CurriculumNode[], targetTitle: string): CurriculumNode | null => {
+    for (const node of nodesArray) {
+      const actualTitle = node.title.replace(' [+]', '').trim();
+      if (actualTitle.toLowerCase() === targetTitle.toLowerCase().trim()) {
+        return node;
+      }
+      if (node.children) {
+        const found = findNodeByTitle(node.children, targetTitle);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  const getAllTopicsList = (nodesArray: CurriculumNode[]): string[] => {
+    let list: string[] = [];
+    nodesArray.forEach(node => {
+      const actualTitle = node.title.replace(' [+]', '').trim();
+      list.push(actualTitle);
+      if (node.children) {
+        list = [...list, ...getAllTopicsList(node.children)];
+      }
+    });
+    return list;
+  };
+
+  const getBombaItems = () => {
+    const items: { title: string; imageUrl: string; isStatic: boolean; id?: string }[] = [];
+    
+    if (courseId === 'sem2') {
+      const staticBombaFilesSem2 = [
+        "Алгоритм минимальной раскраски вершин графа на основе метода Магу",
+        "Алгоритм обратного распространения ошибки в перцептроне",
+        "Алгоритм последовательного распространения сигнала в нейронной сети",
+        "Алгоритм последовательного распространения сигнала в свёрточной нейронной сети",
+        "Венгерский алгоритм",
+        "Гамма-алгоритм для плоской укладки планарного графа",
+        "Метод анализа свойств сети Петри на основе покрывающих деревьев",
+        "Метод минимальной стоимости",
+        "Метод потенциалов",
+        "Метод северо-западного угла",
+        "Метод установления изоморфизма графа на основе локальных характеристик вершин",
+        "Поиск максимального потока в транспортной сети",
+        "Эвристические алгоритмы раскраски графа"
+      ];
+      
+      staticBombaFilesSem2.forEach(title => {
+        items.push({
+          title,
+          imageUrl: `/bomba/${title}.png`,
+          isStatic: true
+        });
+      });
+    }
+    
+    customImages.forEach(img => {
+      const staticIndex = items.findIndex(item => item.title.toLowerCase() === img.title.toLowerCase());
+      if (staticIndex > -1) {
+        items[staticIndex] = {
+          title: img.title,
+          imageUrl: img.imageUrl,
+          isStatic: false,
+          id: img.id
+        };
+      } else {
+        items.push({
+          title: img.title,
+          imageUrl: img.imageUrl,
+          isStatic: false,
+          id: img.id
+        });
+      }
+    });
+    
+    return items;
+  };
+
+  const handleBombaItemClick = (itemTitle: string) => {
+    const matchedNode = findNodeByTitle(nodes, itemTitle);
+    if (matchedNode) {
+      setShowBombaModal(false);
+      setSelectedNode({ id: matchedNode.id, title: matchedNode.title.replace(' [+]', '') });
+    } else {
+      alert(`Раздел "${itemTitle}" не найден в текущем учебном плане. Администратор может связать изображение, назвав его точно так же, как и тему.`);
+    }
+  };
+
+  const handleDeleteBombaImage = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.confirm("Вы уверены, что хотите удалить это изображение из навигатора?")) {
+      try {
+        await deleteDoc(doc(db, 'bomba_images', id));
+      } catch (err) {
+        console.error("Error deleting image:", err);
+        alert("Ошибка при удалении изображения.");
+      }
+    }
+  };
+
+  const handleBombaImageUpload = async () => {
+    const titleToUse = useCustomBombaTitle ? newBombaCustomTitle.trim() : newBombaTitle.trim();
+    if (!titleToUse) {
+      alert("Пожалуйста, введите или выберите название темы.");
+      return;
+    }
+    if (!newBombaImageBase64) {
+      alert("Пожалуйста, выберите изображение.");
+      return;
+    }
+    
+    setBombaUploading(true);
+    try {
+      await addDoc(collection(db, 'bomba_images'), {
+        courseId,
+        title: titleToUse,
+        imageUrl: newBombaImageBase64,
+        createdAt: new Date().toISOString()
+      });
+      setNewBombaCustomTitle('');
+      setNewBombaImageBase64('');
+      alert("Изображение успешно добавлено и привязано!");
+    } catch (err) {
+      console.error("Error uploading image:", err);
+      alert("Не удалось сохранить изображение.");
+    } finally {
+      setBombaUploading(false);
+    }
+  };
+
+  const handleBombaFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setNewBombaImageBase64(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const toggleSection = (key: string) => {
     setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
@@ -289,7 +457,31 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
       <div className="cd-box">
         {activeTab === 'course' && (
           <>
-            <h3 className="cd-title">{displayTitle}</h3>
+            <div className="cd-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '12px' }}>
+              <h3 className="cd-title" style={{ margin: 0 }}>{displayTitle}</h3>
+              <button 
+                className="bomba-trigger-btn"
+                onClick={() => setShowBombaModal(true)}
+                title="Показать визуальный навигатор тем"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  background: 'linear-gradient(135deg, #1a5598 0%, #003a6c 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '6px 14px',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <ImageIcon size={14} style={{ marginRight: '6px' }} />
+                <span>Визуальный навигатор</span>
+              </button>
+            </div>
             <div className="cd-state-row">
               <span className="cd-state-label">{t.courseState}</span>
               <select className="cd-state-select" defaultValue="0">
@@ -416,6 +608,170 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
           onClose={() => setShowAdminModal(false)}
           onSave={handleModalSave}
         />
+      )}
+
+      {showBombaModal && (
+        <div className="bomba-modal-overlay" onClick={() => setShowBombaModal(false)}>
+          <div className="bomba-modal" onClick={e => e.stopPropagation()}>
+            <div className="bomba-header">
+              <div className="bomba-header-title">
+                <ImageIcon size={20} className="bomba-title-icon" />
+                <h2>Визуальный навигатор тем: {isSem1 ? '1 семестр' : '2 семестр'}</h2>
+              </div>
+              <button className="bomba-close-btn" onClick={() => setShowBombaModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="bomba-search-row">
+              <input 
+                type="text" 
+                className="bomba-search-input"
+                placeholder="Поиск тем по названию..."
+                value={bombaSearchQuery}
+                onChange={(e) => setBombaSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <div className="bomba-modal-content">
+              {/* Admin Panel inside Bomba */}
+              {isAdmin && (
+                <div className="bomba-admin-panel">
+                  <div className="bomba-admin-header">
+                    <Sparkles size={16} className="bomba-sparkle-icon" />
+                    <h3>Панель администратора: Добавление материалов</h3>
+                  </div>
+                  
+                  <div className="bomba-admin-form">
+                    <div className="bomba-form-group">
+                      <label>Связанная тема:</label>
+                      <div className="bomba-toggle-mode">
+                        <label className="bomba-checkbox-label">
+                          <input 
+                            type="checkbox" 
+                            checked={useCustomBombaTitle} 
+                            onChange={(e) => setUseCustomBombaTitle(e.target.checked)} 
+                          />
+                          <span>Ввести вручную (не из списка)</span>
+                        </label>
+                      </div>
+
+                      {useCustomBombaTitle ? (
+                        <input 
+                          type="text" 
+                          className="bomba-input" 
+                          placeholder="Введите точное название темы..."
+                          value={newBombaCustomTitle}
+                          onChange={(e) => setNewBombaCustomTitle(e.target.value)}
+                        />
+                      ) : (
+                        <select 
+                          className="bomba-select"
+                          value={newBombaTitle}
+                          onChange={(e) => setNewBombaTitle(e.target.value)}
+                        >
+                          <option value="">-- Выберите тему из плана --</option>
+                          {getAllTopicsList(nodes).map((topic, idx) => (
+                            <option key={idx} value={topic}>{topic}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+
+                    <div className="bomba-form-group">
+                      <label>Изображение (PNG/JPG):</label>
+                      <div className="bomba-file-upload-box">
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          id="bomba-file-input"
+                          onChange={handleBombaFileChange}
+                          style={{ display: 'none' }}
+                        />
+                        <label htmlFor="bomba-file-input" className="bomba-file-label">
+                          {newBombaImageBase64 ? '✓ Изображение выбрано' : 'Выбрать файл изображения'}
+                        </label>
+                      </div>
+                      {newBombaImageBase64 && (
+                        <div className="bomba-preview-wrapper">
+                          <img src={newBombaImageBase64} alt="Preview" className="bomba-upload-preview" />
+                        </div>
+                      )}
+                    </div>
+
+                    <button 
+                      className="bomba-upload-btn"
+                      onClick={handleBombaImageUpload}
+                      disabled={bombaUploading || (!useCustomBombaTitle && !newBombaTitle) || (useCustomBombaTitle && !newBombaCustomTitle) || !newBombaImageBase64}
+                    >
+                      {bombaUploading ? (
+                        <>
+                          <Loader2 size={14} className="animate-spin" style={{ marginRight: '6px' }} />
+                          Загрузка...
+                        </>
+                      ) : (
+                        'Загрузить и опубликовать'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Images list vertical */}
+              <div className="bomba-images-container">
+                {getBombaItems()
+                  .filter(item => item.title.toLowerCase().includes(bombaSearchQuery.toLowerCase()))
+                  .length === 0 ? (
+                    <div className="bomba-empty-state">
+                      <p>Изображения для выбранных разделов отсутствуют или не соответствуют критериям поиска.</p>
+                      {isAdmin && <p className="bomba-empty-hint">Используйте форму выше, чтобы добавить новые изображения!</p>}
+                    </div>
+                  ) : (
+                    getBombaItems()
+                      .filter(item => item.title.toLowerCase().includes(bombaSearchQuery.toLowerCase()))
+                      .map((item, index) => {
+                        const isLinked = !!findNodeByTitle(nodes, item.title);
+                        return (
+                          <div 
+                            key={index} 
+                            className={`bomba-card ${isLinked ? 'is-linked' : 'is-unlinked'}`}
+                            onClick={() => handleBombaItemClick(item.title)}
+                          >
+                            <div className="bomba-card-image-box">
+                              <img src={item.imageUrl} alt={item.title} className="bomba-card-img" />
+                              <div className="bomba-card-badge-overlay">
+                                {isLinked ? (
+                                  <span className="bomba-badge linked">✓ Раздел связан</span>
+                                ) : (
+                                  <span className="bomba-badge unlinked">• Автономно</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="bomba-card-info">
+                              <h4 className="bomba-card-title">{item.title}</h4>
+                              <div className="bomba-card-actions">
+                                <span className="bomba-card-link-text">
+                                  {isLinked ? 'Перейти к разделу (Инструкции / Prompt) →' : 'Раздел не найден в плане'}
+                                </span>
+                                {isAdmin && !item.isStatic && item.id && (
+                                  <button 
+                                    className="bomba-card-delete-btn"
+                                    onClick={(e) => handleDeleteBombaImage(item.id!, e)}
+                                    title="Удалить это изображение"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                  )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
