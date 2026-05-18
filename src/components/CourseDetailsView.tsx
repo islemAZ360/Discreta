@@ -69,7 +69,12 @@ const sem2NodesStatic: CurriculumNode[] = [
           { id: 's2_1_2_2', title: 'Метод минимальной стоимости [+]' }
         ]
       },
-      { id: 's2_1_3', title: 'Метод потенциалов [+]' }
+      {
+        id: 's2_1_3', title: 'Метод потенциалов', type: 'topic', children: [
+          { id: 's2_1_3_1', title: 'Задача (обучение)', type: 'link' },
+          { id: 's2_1_3_2', title: 'Задача (аттестация)', type: 'link' }
+        ]
+      }
     ]
   },
   {
@@ -80,8 +85,7 @@ const sem2NodesStatic: CurriculumNode[] = [
       { id: 's2_2_4', title: 'Метод анализа свойств сети Петри на основе покрывающих деревьев [+]' },
       { id: 's2_2_5', title: 'Алгоритм последовательного распространения сигнала в свёрточной нейронной сети [+]' }
     ]
-  },
-  { id: 's2_3', title: 'Экзамен [+]' }
+  }
 ];
 
 // Helper functions for deep nested updates
@@ -138,7 +142,7 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
   const [showBombaModal, setShowBombaModal] = useState(false);
   const [customImages, setCustomImages] = useState<{ id: string; title: string; imageUrl: string }[]>([]);
   const [bombaSearchQuery, setBombaSearchQuery] = useState('');
-  
+
   // Admin Upload State inside Bomba
   const [newBombaTitle, setNewBombaTitle] = useState('');
   const [newBombaCustomTitle, setNewBombaCustomTitle] = useState('');
@@ -195,7 +199,7 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
 
   const getBombaItems = () => {
     const items: { title: string; imageUrl: string; isStatic: boolean; id?: string }[] = [];
-    
+
     if (courseId === 'sem2') {
       const staticBombaFilesSem2 = [
         "Алгоритм минимальной раскраски вершин графа на основе метода Магу",
@@ -212,7 +216,7 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
         "Поиск максимального потока в транспортной сети",
         "Эвристические алгоритмы раскраски графа"
       ];
-      
+
       staticBombaFilesSem2.forEach(title => {
         items.push({
           title,
@@ -221,7 +225,7 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
         });
       });
     }
-    
+
     customImages.forEach(img => {
       const staticIndex = items.findIndex(item => item.title.toLowerCase() === img.title.toLowerCase());
       if (staticIndex > -1) {
@@ -240,7 +244,7 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
         });
       }
     });
-    
+
     return items;
   };
 
@@ -276,7 +280,7 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
       alert("Пожалуйста, выберите изображение.");
       return;
     }
-    
+
     setBombaUploading(true);
     try {
       await addDoc(collection(db, 'bomba_images'), {
@@ -346,7 +350,7 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
       }
       updateCurriculum(updatedNodes);
       if (modalTargetParentId) {
-        setExpanded(prev => ({...prev, [modalTargetParentId]: true})); // Auto expand parent
+        setExpanded(prev => ({ ...prev, [modalTargetParentId]: true })); // Auto expand parent
       }
     } else {
       const updatedNodes = editNodeRecursively([...nodes], savedNode.id, savedNode);
@@ -361,7 +365,7 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
         {nodeArray.map(node => {
           const hasChildren = node.children && node.children.length > 0;
           const isExpanded = !!expanded[node.id];
-          
+
           let actualTitle = node.title;
           let showStaticPlus = false;
           if (actualTitle.endsWith(' [+]')) {
@@ -376,15 +380,15 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
               <div className="cd-node-content">
                 {isFolder ? (
                   <span className="cd-node-wrapper">
-                    <span 
-                      className="cd-topic-link" 
+                    <span
+                      className="cd-topic-link"
                       onClick={() => handleLeafClick(node.id, actualTitle)}
                       style={{ cursor: 'pointer' }}
                     >
                       {actualTitle}
                     </span>
-                    <span 
-                      className="cd-toggle-area" 
+                    <span
+                      className="cd-toggle-area"
                       onClick={() => toggleSection(node.id)}
                       style={{ cursor: 'pointer', marginLeft: '4px' }}
                     >
@@ -399,7 +403,7 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
                       {actualTitle}
                     </span>
                     {showStaticPlus && (
-                      <span 
+                      <span
                         className="cd-toggle-area"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -413,7 +417,7 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
                     )}
                   </span>
                 )}
-                
+
                 {isAdmin && (
                   <div className="cd-admin-controls" onClick={(e) => e.stopPropagation()}>
                     {isFolder && (
@@ -439,7 +443,7 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
     );
   };
 
-  const displayTitle = isSem1 
+  const displayTitle = isSem1
     ? 'Электронный курс Дискретная математика (1 семестр, 2025/2026 уч.гг.) [2025910]'
     : 'Электронный курс Дискретная математика (2 семестр, 2025/2026) [20269092]';
 
@@ -456,7 +460,7 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
           <>
             <div className="cd-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '12px' }}>
               <h3 className="cd-title" style={{ margin: 0 }}>{displayTitle}</h3>
-              <button 
+              <button
                 className="bomba-trigger-btn"
                 onClick={() => setShowBombaModal(true)}
                 title="Показать визуальный навигатор тем"
@@ -591,15 +595,15 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
       </div>
 
       {selectedNode && (
-        <NodeContentView 
-          nodeId={selectedNode.id} 
-          nodeTitle={selectedNode.title} 
-          onClose={() => setSelectedNode(null)} 
+        <NodeContentView
+          nodeId={selectedNode.id}
+          nodeTitle={selectedNode.title}
+          onClose={() => setSelectedNode(null)}
         />
       )}
 
       {showAdminModal && (
-        <CurriculumAdminModal 
+        <CurriculumAdminModal
           mode={modalMode}
           initialNode={nodeToEdit}
           onClose={() => setShowAdminModal(false)}
@@ -621,8 +625,8 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
             </div>
 
             <div className="bomba-search-row">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 className="bomba-search-input"
                 placeholder="Поиск тем по названию..."
                 value={bombaSearchQuery}
@@ -638,31 +642,31 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
                     <Sparkles size={16} className="bomba-sparkle-icon" />
                     <h3>Панель администратора: Добавление материалов</h3>
                   </div>
-                  
+
                   <div className="bomba-admin-form">
                     <div className="bomba-form-group">
                       <label>Связанная тема:</label>
                       <div className="bomba-toggle-mode">
                         <label className="bomba-checkbox-label">
-                          <input 
-                            type="checkbox" 
-                            checked={useCustomBombaTitle} 
-                            onChange={(e) => setUseCustomBombaTitle(e.target.checked)} 
+                          <input
+                            type="checkbox"
+                            checked={useCustomBombaTitle}
+                            onChange={(e) => setUseCustomBombaTitle(e.target.checked)}
                           />
                           <span>Ввести вручную (не из списка)</span>
                         </label>
                       </div>
 
                       {useCustomBombaTitle ? (
-                        <input 
-                          type="text" 
-                          className="bomba-input" 
+                        <input
+                          type="text"
+                          className="bomba-input"
                           placeholder="Введите точное название темы..."
                           value={newBombaCustomTitle}
                           onChange={(e) => setNewBombaCustomTitle(e.target.value)}
                         />
                       ) : (
-                        <select 
+                        <select
                           className="bomba-select"
                           value={newBombaTitle}
                           onChange={(e) => setNewBombaTitle(e.target.value)}
@@ -682,9 +686,9 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
                     <div className="bomba-form-group">
                       <label>Изображение (PNG/JPG):</label>
                       <div className="bomba-file-upload-box">
-                        <input 
-                          type="file" 
-                          accept="image/*" 
+                        <input
+                          type="file"
+                          accept="image/*"
                           id="bomba-file-input"
                           onChange={handleBombaFileChange}
                           style={{ display: 'none' }}
@@ -700,7 +704,7 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
                       )}
                     </div>
 
-                    <button 
+                    <button
                       className="bomba-upload-btn"
                       onClick={handleBombaImageUpload}
                       disabled={bombaUploading || (!useCustomBombaTitle && !newBombaTitle) || (useCustomBombaTitle && !newBombaCustomTitle) || !newBombaImageBase64}
@@ -723,52 +727,52 @@ export default function CourseDetailsView({ courseId, onBack }: CourseDetailsVie
                 {getBombaItems()
                   .filter(item => item.title.toLowerCase().includes(bombaSearchQuery.toLowerCase()))
                   .length === 0 ? (
-                    <div className="bomba-empty-state">
-                      <p>Изображения для выбранных разделов отсутствуют или не соответствуют критериям поиска.</p>
-                      {isAdmin && <p className="bomba-empty-hint">Используйте форму выше, чтобы добавить новые изображения!</p>}
-                    </div>
-                  ) : (
-                    getBombaItems()
-                      .filter(item => item.title.toLowerCase().includes(bombaSearchQuery.toLowerCase()))
-                      .map((item, index) => {
-                        const isLinked = !!findNodeByTitle(nodes, item.title);
-                        return (
-                          <div 
-                            key={index} 
-                            className={`bomba-card ${isLinked ? 'is-linked' : 'is-unlinked'}`}
-                            onClick={() => handleBombaItemClick(item.title)}
-                          >
-                            <div className="bomba-card-image-box">
-                              <img src={item.imageUrl} alt={item.title} className="bomba-card-img" />
-                              <div className="bomba-card-badge-overlay">
-                                {isLinked ? (
-                                  <span className="bomba-badge linked">✓ Раздел связан</span>
-                                ) : (
-                                  <span className="bomba-badge unlinked">• Автономно</span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="bomba-card-info">
-                              <h4 className="bomba-card-title">{item.title}</h4>
-                              <div className="bomba-card-actions">
-                                <span className="bomba-card-link-text">
-                                  {isLinked ? 'Перейти к разделу (Инструкции / Prompt) →' : 'Раздел не найден в плане'}
-                                </span>
-                                {isAdmin && !item.isStatic && item.id && (
-                                  <button 
-                                    className="bomba-card-delete-btn"
-                                    onClick={(e) => handleDeleteBombaImage(item.id!, e)}
-                                    title="Удалить это изображение"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                )}
-                              </div>
+                  <div className="bomba-empty-state">
+                    <p>Изображения для выбранных разделов отсутствуют или не соответствуют критериям поиска.</p>
+                    {isAdmin && <p className="bomba-empty-hint">Используйте форму выше, чтобы добавить новые изображения!</p>}
+                  </div>
+                ) : (
+                  getBombaItems()
+                    .filter(item => item.title.toLowerCase().includes(bombaSearchQuery.toLowerCase()))
+                    .map((item, index) => {
+                      const isLinked = !!findNodeByTitle(nodes, item.title);
+                      return (
+                        <div
+                          key={index}
+                          className={`bomba-card ${isLinked ? 'is-linked' : 'is-unlinked'}`}
+                          onClick={() => handleBombaItemClick(item.title)}
+                        >
+                          <div className="bomba-card-image-box">
+                            <img src={item.imageUrl} alt={item.title} className="bomba-card-img" />
+                            <div className="bomba-card-badge-overlay">
+                              {isLinked ? (
+                                <span className="bomba-badge linked">✓ Раздел связан</span>
+                              ) : (
+                                <span className="bomba-badge unlinked">• Автономно</span>
+                              )}
                             </div>
                           </div>
-                        );
-                      })
-                  )}
+                          <div className="bomba-card-info">
+                            <h4 className="bomba-card-title">{item.title}</h4>
+                            <div className="bomba-card-actions">
+                              <span className="bomba-card-link-text">
+                                {isLinked ? 'Перейти к разделу (Инструкции / Prompt) →' : 'Раздел не найден в плане'}
+                              </span>
+                              {isAdmin && !item.isStatic && item.id && (
+                                <button
+                                  className="bomba-card-delete-btn"
+                                  onClick={(e) => handleDeleteBombaImage(item.id!, e)}
+                                  title="Удалить это изображение"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                )}
               </div>
             </div>
           </div>
